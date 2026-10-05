@@ -36,3 +36,10 @@ backend/prisma/migrations/dev.db*
 # Coverage
 coverage/
 EOF
+
+# TypeScript compiled config outputs
+*.config.d.ts
+
+# TypeScript compiled config outputs
+frontend/vite.config.js
+frontend/vite.config.d.ts
