@@ -1,0 +1,1435 @@
+openapi: 3.1.0
+
+info:
+  title: StudySync API
+  version: 0.1.0
+  description: |
+    REST API baseline for the StudySync MVP.
+
+    Conventions:
+    - JSON only; timestamps in UTC ISO 8601.
+    - Versioned base path: `/api/v1`.
+    - Cursor-based pagination.
+    - Consistent response envelope: `{ success, data, meta? }` for success,
+      `{ success, message, errorCode, details? }` for errors.
+    - `/health` is unversioned.
+  contact:
+    name: StudySync Team
+
+servers:
+  - url: http://localhost:3000
+    description: Local development
+  - url: https://api.studysync.example.com
+    description: Production (placeholder)
+
+tags:
+  - name: System
+    description: Health and meta endpoints
+  - name: Auth
+    description: Register, login, refresh, logout
+  - name: Users
+    description: Profile and user search
+  - name: Friends
+    description: Friend requests, friendships, blocks
+  - name: Rooms
+    description: Private study rooms, membership, invites
+  - name: Invites
+    description: Invite acceptance
+  - name: Messages
+    description: Room text chat
+  - name: Study Sessions
+    description: Personal study sessions
+  - name: Dashboard
+    description: Aggregated stats
+
+security:
+  - bearerAuth: []
+
+paths:
+  /health:
+    get:
+      tags: [System]
+      summary: Liveness and readiness probe
+      security: []
+      responses:
+        '200':
+          description: Service is up
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    enum: [true]
+                  data:
+                    $ref: '#/components/schemas/HealthData'
+
+  /api/v1/auth/register:
+    post:
+      tags: [Auth]
+      summary: Register a new account
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password, displayName]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  minLength: 8
+                displayName:
+                  type: string
+                  minLength: 1
+                  maxLength: 80
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    enum: [true]
+                  data:
+                    $ref: '#/components/schemas/AuthResponse'
+        '409':
+          description: Email already registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/auth/login:
+    post:
+      tags: [Auth]
+      summary: Authenticate with email and password
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+      responses:
+        '200':
+          description: OK. Refresh cookie is set.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    enum: [true]
+                  data:
+                    $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Rotate refresh token and issue a new access token
+      security:
+        - refreshCookie: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    enum: [true]
+                  data:
+                    $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: Refresh token missing, expired or reused
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/auth/logout:
+    post:
+      tags: [Auth]
+      summary: Revoke the current refresh token family and clear cookie
+      responses:
+        '204':
+          description: No content
+
+  /api/v1/users/me:
+    get:
+      tags: [Users]
+      summary: Get the authenticated user's profile
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    enum: [true]
+                  data:
+                    $ref: '#/components/schemas/User'
+    patch:
+      tags: [Users]
+      summary: Update the authenticated user's profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                displayName:
+                  type: string
+                  minLength: 1
+                  maxLength: 80
+                avatarUrl:
+                  type: string
+                  format: uri
+                  nullable: true
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    enum: [true]
+                  data:
+                    $ref: '#/components/schemas/User'
+        '422':
+          description: Validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/users:
+    get:
+      tags: [Users]
+      summary: Search users by display name or email
+      parameters:
+        - name: query
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 2
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Paged list of users
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    enum: [true]
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PublicUser'
+                  meta:
+                    $ref: '#/components/schemas/Meta'
+        '422':
+          description: Validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/friend-requests:
+    post:
+      tags: [Friends]
+      summary: Send a friend request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [receiverId]
+              properties:
+                receiverId:
+                  type: string
+                  format: uuid
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    enum: [true]
+                  data:
+                    $ref: '#/components/schemas/FriendRequest'
+        '404':
+          description: Receiver not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Duplicate or blocked relationship
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    get:
+      tags: [Friends]
+      summary: List friend requests (incoming or outgoing)
+      parameters:
+        - name: direction
+          in: query
+          schema:
+            type: string
+            enum: [incoming, outgoing]
+            default: incoming
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [PENDING, ACCEPTED, REJECTED]
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Paged list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    enum: [true]
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/FriendRequest'
+                  meta:
+                    $ref: '#/components/schemas/Meta'
+
+  /api/v1/friend-requests/{id}:
+    patch:
+      tags: [Friends]
+      summary: Accept or reject a friend request
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action]
+              properties:
+                action:
+                  type: string
+                  enum: [accept, reject]
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    enum: [true]
+                  data:
+                    $ref: '#/components/schemas/FriendRequest'
+        '403':
+          description: Caller is not the receiver
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Request not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Already responded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/friends:
+    get:
+      tags: [Friends]
+      summary: List accepted friends
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Paged list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    enum: [true]
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Friend'
+                  meta:
+                    $ref: '#/components/schemas/Meta'
+
+  /api/v1/friends/{userId}:
+    delete:
+      tags: [Friends]
+      summary: Remove a friendship
+      parameters:
+        - $ref: '#/components/parameters/UserIdPath'
+      responses:
+        '204':
+          description: No content
+        '404':
+          description: Friendship not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/blocks/{userId}:
+    post:
+      tags: [Friends]
+      summary: Block a user
+      parameters:
+        - $ref: '#/components/parameters/UserIdPath'
+      responses:
+        '201':
+          description: Created
+        '409':
+          description: Already blocked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      tags: [Friends]
+      summary: Unblock a user
+      parameters:
+        - $ref: '#/components/parameters/UserIdPath'
+      responses:
+        '204':
+          description: No content
+  
+  /api/v1/rooms:
+    post:
+      tags: [Rooms]
+      summary: Create a private room
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 100
+                description:
+                  type: string
+                  maxLength: 500
+                  nullable: true
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    enum: [true]
+                  data:
+                    $ref: '#/components/schemas/Room'
+        '422':
+          description: Validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/rooms/{id}:
+    get:
+      tags: [Rooms]
+      summary: Get a room (members only)
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    enum: [true]
+                  data:
+                    $ref: '#/components/schemas/Room'
+        '403':
+          description: Caller is not a member
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    patch:
+      tags: [Rooms]
+      summary: Update a room (owner only)
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 100
+                description:
+                  type: string
+                  maxLength: 500
+                  nullable: true
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    enum: [true]
+                  data:
+                    $ref: '#/components/schemas/Room'
+        '403':
+          description: Caller is not the owner
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      tags: [Rooms]
+      summary: Soft-delete a room (owner only)
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      responses:
+        '204':
+          description: No content
+        '403':
+          description: Caller is not the owner
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/rooms/{id}/members:
+    get:
+      tags: [Rooms]
+      summary: List room members
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    enum: [true]
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/RoomMember'
+        '403':
+          description: Caller is not a member
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/rooms/{id}/invites:
+    post:
+      tags: [Rooms, Invites]
+      summary: Create an invite (owner only)
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [inviteeId]
+              properties:
+                inviteeId:
+                  type: string
+                  format: uuid
+                expiresAt:
+                  type: string
+                  format: date-time
+                  nullable: true
+      responses:
+        '201':
+          description: Created. Raw token is returned once.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    enum: [true]
+                  data:
+                    $ref: '#/components/schemas/Invite'
+        '403':
+          description: Caller is not the owner
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Invitee is not an accepted friend or already a member
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/invites/{token}/accept:
+    post:
+      tags: [Invites]
+      summary: Accept an invite and join the room
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Membership created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    enum: [true]
+                  data:
+                    $ref: '#/components/schemas/RoomMember'
+        '403':
+          description: Invite does not target the caller
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Invite not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '410':
+          description: Invite expired, revoked or exhausted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/rooms/{id}/membership:
+    delete:
+      tags: [Rooms]
+      summary: Leave a room
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      responses:
+        '204':
+          description: No content
+        '403':
+          description: Owner cannot leave without transferring ownership
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/rooms/{id}/messages:
+    get:
+      tags: [Messages]
+      summary: List room messages (cursor-paged, newest first)
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Paged list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    enum: [true]
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Message'
+                  meta:
+                    $ref: '#/components/schemas/Meta'
+        '403':
+          description: Caller is not a member
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      tags: [Messages]
+      summary: Post a message
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [clientId, body]
+              properties:
+                clientId:
+                  type: string
+                  maxLength: 64
+                body:
+                  type: string
+                  minLength: 1
+                  maxLength: 2000
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    enum: [true]
+                  data:
+                    $ref: '#/components/schemas/Message'
+        '403':
+          description: Caller is not a member
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/messages/{id}:
+    patch:
+      tags: [Messages]
+      summary: Edit a message (author only)
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [body]
+              properties:
+                body:
+                  type: string
+                  minLength: 1
+                  maxLength: 2000
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    enum: [true]
+                  data:
+                    $ref: '#/components/schemas/Message'
+        '403':
+          description: Caller is not the author
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      tags: [Messages]
+      summary: Soft-delete a message (author or room owner)
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '204':
+          description: No content
+        '403':
+          description: Not permitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/study-sessions:
+    post:
+      tags: [Study Sessions]
+      summary: Start a new study session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [subject, goal]
+              properties:
+                roomId:
+                  type: string
+                  format: uuid
+                  nullable: true
+                subject:
+                  type: string
+                  minLength: 1
+                  maxLength: 120
+                goal:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    enum: [true]
+                  data:
+                    $ref: '#/components/schemas/StudySession'
+        '409':
+          description: An active session already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    get:
+      tags: [Study Sessions]
+      summary: List the caller's study sessions
+      parameters:
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: roomId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Paged list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    enum: [true]
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/StudySession'
+                  meta:
+                    $ref: '#/components/schemas/Meta'
+
+  /api/v1/study-sessions/{id}:
+    get:
+      tags: [Study Sessions]
+      summary: Get one session
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    enum: [true]
+                  data:
+                    $ref: '#/components/schemas/StudySession'
+        '403':
+          description: Caller is not the session owner
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    patch:
+      tags: [Study Sessions]
+      summary: Transition session state (owner only)
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [state]
+              properties:
+                state:
+                  type: string
+                  enum: [FOCUS, BREAK, ENDED]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    enum: [true]
+                  data:
+                    $ref: '#/components/schemas/StudySession'
+        '403':
+          description: Not the owner
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Invalid state transition
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      tags: [Study Sessions]
+      summary: Delete a session (owner only)
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '204':
+          description: No content
+        '403':
+          description: Not the owner
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/dashboard/stats:
+    get:
+      tags: [Dashboard]
+      summary: Aggregated study totals
+      parameters:
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: timezone
+          in: query
+          schema:
+            type: string
+            example: Asia/Ho_Chi_Minh
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    enum: [true]
+                  data:
+                    $ref: '#/components/schemas/DashboardStats'
+        '422':
+          description: Validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: "Short-lived access token in `Authorization: Bearer <token>`."
+    refreshCookie:
+      type: apiKey
+      in: cookie
+      name: refresh_token
+      description: Rotating refresh token stored in an HTTP-only cookie.
+
+  parameters:
+    Cursor:
+      name: cursor
+      in: query
+      schema:
+        type: string
+      description: Opaque cursor returned by the previous page.
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 30
+      description: Page size.
+    IdPath:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    UserIdPath:
+      name: userId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    RoomIdPath:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  schemas:
+    Meta:
+      type: object
+      properties:
+        nextCursor:
+          type: string
+          nullable: true
+        total:
+          type: integer
+          nullable: true
+
+    Error:
+      type: object
+      required: [success, message, errorCode]
+      properties:
+        success:
+          type: boolean
+          enum: [false]
+        message:
+          type: string
+        errorCode:
+          type: string
+          example: VALIDATION_FAILED
+        details:
+          type: object
+          additionalProperties: true
+          description: Optional field-safe details (e.g. per-field validation errors).
+
+    User:
+      type: object
+      required: [id, email, displayName, status, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        displayName:
+          type: string
+          maxLength: 80
+        avatarUrl:
+          type: string
+          format: uri
+          nullable: true
+        status:
+          type: string
+          enum: [OFFLINE, ONLINE, FOCUS, BREAK, AFK]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    PublicUser:
+      type: object
+      required: [id, displayName, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        displayName:
+          type: string
+        avatarUrl:
+          type: string
+          format: uri
+          nullable: true
+        status:
+          type: string
+          enum: [OFFLINE, ONLINE, FOCUS, BREAK, AFK]
+
+    AuthResponse:
+      type: object
+      required: [user]
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+        accessToken:
+          type: string
+          description: Returned on register/login/refresh. Set as bearer for subsequent calls.
+
+    FriendRequest:
+      type: object
+      required: [id, senderId, receiverId, status, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        senderId:
+          type: string
+          format: uuid
+        receiverId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [PENDING, ACCEPTED, REJECTED]
+        createdAt:
+          type: string
+          format: date-time
+        respondedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    Friend:
+      type: object
+      required: [user, friendshipId, createdAt]
+      properties:
+        user:
+          $ref: '#/components/schemas/PublicUser'
+        friendshipId:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+
+    Room:
+      type: object
+      required: [id, ownerId, name, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        ownerId:
+          type: string
+          format: uuid
+        name:
+          type: string
+          maxLength: 100
+        description:
+          type: string
+          maxLength: 500
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    RoomMember:
+      type: object
+      required: [roomId, user, role, joinedAt]
+      properties:
+        roomId:
+          type: string
+          format: uuid
+        user:
+          $ref: '#/components/schemas/PublicUser'
+        role:
+          type: string
+          enum: [OWNER, MEMBER]
+        joinedAt:
+          type: string
+          format: date-time
+        leftAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    Invite:
+      type: object
+      required: [id, roomId, inviterId, maxUses, useCount, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        roomId:
+          type: string
+          format: uuid
+        inviterId:
+          type: string
+          format: uuid
+        inviteeId:
+          type: string
+          format: uuid
+          nullable: true
+        token:
+          type: string
+          description: Raw token. Returned only once at creation time.
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+        maxUses:
+          type: integer
+          default: 1
+        useCount:
+          type: integer
+          default: 0
+        createdAt:
+          type: string
+          format: date-time
+
+    Message:
+      type: object
+      required: [id, roomId, senderId, body, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        roomId:
+          type: string
+          format: uuid
+        senderId:
+          type: string
+          format: uuid
+        clientId:
+          type: string
+          description: Client-generated idempotency key.
+        body:
+          type: string
+          maxLength: 2000
+        editedAt:
+          type: string
+          format: date-time
+          nullable: true
+        deletedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    StudySession:
+      type: object
+      required: [id, userId, subject, goal, state, startedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        roomId:
+          type: string
+          format: uuid
+          nullable: true
+        subject:
+          type: string
+          maxLength: 120
+        goal:
+          type: string
+          maxLength: 500
+        state:
+          type: string
+          enum: [FOCUS, BREAK, ENDED]
+        startedAt:
+          type: string
+          format: date-time
+        endedAt:
+          type: string
+          format: date-time
+          nullable: true
+        durationSeconds:
+          type: integer
+          minimum: 0
+          default: 0
+        createdAt:
+          type: string
+          format: date-time
+
+    DashboardStats:
+      type: object
+      required: [from, to, totalSeconds, sessionCount]
+      properties:
+        from:
+          type: string
+          format: date-time
+        to:
+          type: string
+          format: date-time
+        totalSeconds:
+          type: integer
+        sessionCount:
+          type: integer
+        bySubject:
+          type: array
+          items:
+            type: object
+            properties:
+              subject:
+                type: string
+              seconds:
+                type: integer
+
+    HealthData:
+      type: object
+      required: [status, uptime, timestamp]
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded]
+        uptime:
+          type: number
+          description: Process uptime in seconds.
+        timestamp:
+          type: string
+          format: date-time
