@@ -3,16 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 import api from '../lib/axios';
-
-// Frontend Zod schema for login
-export const loginSchema = z.object({
-  email: z.string().email('Email không hợp lệ'),
-  password: z.string().min(1, 'Mật khẩu không được để trống'),
-});
-
-export type LoginFormData = z.infer<typeof loginSchema>;
+import { loginSchema, type LoginFormData } from '../schemas/auth.schema';
 
 export const LoginForm: React.FC = () => {
   const navigate = useNavigate();
@@ -44,7 +36,7 @@ export const LoginForm: React.FC = () => {
     },
     onError: (error: unknown) => {
       if (error && typeof error === 'object' && 'response' in error) {
-        const axiosError = error as { response?: { status: number; data?: { message?: string; errorCode?: string } } };
+        const axiosError = error as { response?: { status: number; data?: { message?: string; errorCode?: string; details?: Record<string, string[]> } } };
         const status = axiosError.response?.status;
         const message = axiosError.response?.data?.message;
         const errorCode = axiosError.response?.data?.errorCode;
@@ -54,7 +46,7 @@ export const LoginForm: React.FC = () => {
         } else if (status === 400 && errorCode === 'VALIDATION_ERROR') {
           const details = axiosError.response?.data?.details;
           if (details) {
-            Object.entries(details).forEach(([field, messages]) => {
+            Object.values(details).forEach((messages) => {
               if (messages && Array.isArray(messages) && messages.length > 0) {
                 // Use setError via form methods - but we can't access setError here easily
                 // So we'll set a generic error for now

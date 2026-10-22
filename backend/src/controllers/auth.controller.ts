@@ -4,7 +4,7 @@ import { registerUser, loginUser, AuthError } from '../services/auth.service.js'
 import { RegisterInput, LoginInput } from '../validation/auth.schema.js';
 
 export async function registerController(
-  req: Request<{}, {}, RegisterInput>,
+  req: Request<unknown, unknown, RegisterInput>,
   res: Response,
   next: NextFunction
 ): Promise<void> {
@@ -50,7 +50,7 @@ export async function registerController(
 }
 
 export async function loginController(
-  req: Request<{}, {}, LoginInput>,
+  req: Request<unknown, unknown, LoginInput>,
   res: Response,
   next: NextFunction
 ): Promise<void> {
