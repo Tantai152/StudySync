@@ -51,7 +51,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
       }
     } catch (error: unknown) {
       if (error && typeof error === 'object' && 'response' in error) {
-        const axiosError = error as { response?: { status: number; data?: { message?: string; errorCode?: string } } };
+        const axiosError = error as { response?: { status: number; data?: { message?: string; errorCode?: string; details?: Record<string, string[]> } } };
         const status = axiosError.response?.status;
         const message = axiosError.response?.data?.message;
         const errorCode = axiosError.response?.data?.errorCode;
