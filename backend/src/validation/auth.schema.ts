@@ -8,4 +8,12 @@ export const registerSchema = z.object({
   }),
 });
 
+export const loginSchema = z.object({
+  body: z.object({
+    email: z.string().email('Email không hợp lệ'),
+    password: z.string().min(1, 'Mật khẩu không được để trống'),
+  }),
+});
+
 export type RegisterInput = z.infer<typeof registerSchema>['body'];
+export type LoginInput = z.infer<typeof loginSchema>['body'];
