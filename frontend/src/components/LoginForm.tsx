@@ -46,7 +46,7 @@ export const LoginForm: React.FC = () => {
         } else if (status === 400 && errorCode === 'VALIDATION_ERROR') {
           const details = axiosError.response?.data?.details;
           if (details) {
-            Object.entries(details).forEach(([field, messages]) => {
+            Object.values(details).forEach((messages) => {
               if (messages && Array.isArray(messages) && messages.length > 0) {
                 // Use setError via form methods - but we can't access setError here easily
                 // So we'll set a generic error for now
