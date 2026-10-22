@@ -28,7 +28,12 @@ export interface UserResponse {
   updatedAt: Date;
 }
 
-export class AuthError extends Error {
+export interface LoginInput {
+  email: string;
+  password: string;
+}
+
+ export class AuthError extends Error {
   constructor(
     message: string,
     public readonly statusCode: number,
@@ -60,6 +65,33 @@ export async function registerUser(input: CreateUserInput): Promise<UserResponse
       name: input.name,
     },
   });
+
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    createdAt: user.createdAt,
+    updatedAt: user.updatedAt,
+  };
+}
+
+export async function loginUser(input: LoginInput): Promise<UserResponse> {
+  // Find user by email
+  const user = await prisma.user.findUnique({
+    where: { email: input.email },
+  });
+
+  // Generic error for both wrong email and wrong password (security)
+  if (!user) {
+    throw new AuthError('Email hoặc mật khẩu không đúng', 401, 'INVALID_CREDENTIALS');
+  }
+
+  // Verify password
+  const isPasswordValid = await bcrypt.compare(input.password, user.passwordHash);
+
+  if (!isPasswordValid) {
+    throw new AuthError('Email hoặc mật khẩu không đúng', 401, 'INVALID_CREDENTIALS');
+  }
 
   return {
     id: user.id,
