@@ -3,16 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 import api from '../lib/axios';
-
-// Frontend Zod schema for login
-export const loginSchema = z.object({
-  email: z.string().email('Email không hợp lệ'),
-  password: z.string().min(1, 'Mật khẩu không được để trống'),
-});
-
-export type LoginFormData = z.infer<typeof loginSchema>;
+import { loginSchema, type LoginFormData } from '../schemas/auth.schema';
 
 export const LoginForm: React.FC = () => {
   const navigate = useNavigate();
