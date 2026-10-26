@@ -42,7 +42,7 @@ export const LoginForm: React.FC = () => {
         const errorCode = axiosError.response?.data?.errorCode;
 
         if (status === 401 && errorCode === 'INVALID_CREDENTIALS') {
-          setApiError(message || 'Email hoặc mật khẩu không đúng');
+          setApiError(message || 'Email or password is incorrect');
         } else if (status === 400 && errorCode === 'VALIDATION_ERROR') {
           const details = axiosError.response?.data?.details;
           if (details) {
@@ -53,12 +53,12 @@ export const LoginForm: React.FC = () => {
               }
             });
           }
-          setApiError(message || 'Dữ liệu không hợp lệ');
+          setApiError(message || 'Invalid data');
         } else {
           setApiError(message || 'Đã xảy ra lỗi, vui lòng thử lại');
         }
       } else {
-        setApiError('Không thể kết nối đến máy chủ');
+        setApiError('Cannot connect to server');
       }
     },
   });
@@ -75,8 +75,8 @@ export const LoginForm: React.FC = () => {
   return (
     <div className="w-full max-w-md mx-auto bg-white rounded-lg shadow-md p-8">
       <div className="text-center mb-8">
-        <h2 className="text-2xl font-bold text-gray-800">Đăng nhập</h2>
-        <p className="text-gray-600 mt-2">Nhập thông tin để truy cập tài khoản</p>
+        <h2 className="text-2xl font-bold text-gray-800">Log In</h2>
+        <p className="text-gray-600 mt-2">Enter information to access account</p>
       </div>
 
       {/* API-level error (non-field specific) */}
@@ -126,7 +126,7 @@ export const LoginForm: React.FC = () => {
             htmlFor="password"
             className="block text-sm font-medium text-gray-700 mb-1"
           >
-            Mật khẩu
+            Password
           </label>
           <input
             {...register('password')}
@@ -183,21 +183,21 @@ export const LoginForm: React.FC = () => {
                   d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                 />
               </svg>
-              Đang xử lý...
+              Processing...
             </span>
           ) : (
-            'Đăng nhập'
+            'Log In'
           )}
         </button>
       </form>
 
       <p className="mt-6 text-center text-sm text-gray-600">
-        Chưa có tài khoản?{' '}
+        Don't have an account?{' '}
         <a
           href="/register"
           className="text-brand-600 hover:text-brand-700 font-medium transition-colors"
         >
-          Đăng ký ngay
+          Register now
         </a>
       </p>
     </div>

@@ -41,7 +41,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
       });
 
       if (response.data.success) {
-        setSuccessMessage('Đăng ký thành công! Đang chuyển hướng...');
+        setSuccessMessage('Registration successful! Redirecting...');
         reset();
         onSuccess?.();
         // Redirect to login after 1.5 seconds
@@ -60,7 +60,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
           // Attach API error to email field using setError
           setError('email', {
             type: 'server',
-            message: message || 'Email đã được đăng ký',
+            message: message || 'Email is already registered',
           });
         } else if (status === 400 && errorCode === 'VALIDATION_ERROR') {
           // Handle validation errors from backend (shouldn't happen if frontend validates)
@@ -76,10 +76,10 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
             });
           }
         } else {
-          setApiError(message || 'Đã xảy ra lỗi, vui lòng thử lại');
+          setApiError(message || 'An error occurred, please try again');
         }
       } else {
-        setApiError('Không thể kết nối đến máy chủ');
+        setApiError('Cannot connect to server');
       }
     } finally {
       setIsLoading(false);
@@ -89,8 +89,8 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
   return (
     <div className="w-full max-w-md mx-auto bg-white rounded-lg shadow-md p-8">
       <div className="text-center mb-8">
-        <h2 className="text-2xl font-bold text-gray-800">Tạo tài khoản</h2>
-        <p className="text-gray-600 mt-2">Điền thông tin bên dưới để bắt đầu</p>
+        <h2 className="text-2xl font-bold text-gray-800">Create Account</h2>
+        <p className="text-gray-600 mt-2">Fill in the information below to get started</p>
       </div>
 
       {/* API-level error (non-field specific) */}
@@ -120,7 +120,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
             htmlFor="name"
             className="block text-sm font-medium text-gray-700 mb-1"
           >
-            Tên hiển thị
+            Display Name
           </label>
           <input
             {...register('name')}
@@ -132,7 +132,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
                 ? 'border-red-300 bg-red-50'
                 : 'border-gray-300 hover:border-gray-400'
             }`}
-            placeholder="Nguyễn Văn A"
+            placeholder="John Doe"
             disabled={isLoading}
             aria-invalid={errors.name ? 'true' : 'false'}
             aria-describedby={errors.name ? 'name-error' : undefined}
@@ -180,7 +180,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
             htmlFor="password"
             className="block text-sm font-medium text-gray-700 mb-1"
           >
-            Mật khẩu
+            Password
           </label>
           <input
             {...register('password')}
@@ -192,7 +192,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
                 ? 'border-red-300 bg-red-50'
                 : 'border-gray-300 hover:border-gray-400'
             }`}
-            placeholder="Ít nhất 8 ký tự"
+            placeholder="At least 8 characters"
             disabled={isLoading}
             aria-invalid={errors.password ? 'true' : 'false'}
             aria-describedby={errors.password ? 'password-error' : undefined}
@@ -210,7 +210,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
             htmlFor="confirmPassword"
             className="block text-sm font-medium text-gray-700 mb-1"
           >
-            Xác nhận mật khẩu
+            Confirm Password
           </label>
           <input
             {...register('confirmPassword')}
@@ -222,7 +222,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
                 ? 'border-red-300 bg-red-50'
                 : 'border-gray-300 hover:border-gray-400'
             }`}
-            placeholder="Nhập lại mật khẩu"
+            placeholder="Enter password again"
             disabled={isLoading}
             aria-invalid={errors.confirmPassword ? 'true' : 'false'}
             aria-describedby={errors.confirmPassword ? 'confirmPassword-error' : undefined}
@@ -271,21 +271,21 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
                   d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                 />
               </svg>
-              Đang xử lý...
+              Processing...
             </span>
           ) : (
-            'Đăng ký'
+            'Register'
           )}
         </button>
       </form>
 
       <p className="mt-6 text-center text-sm text-gray-600">
-        Đã có tài khoản?{' '}
+        Already have an account?{' '}
         <a
           href="/login"
           className="text-brand-600 hover:text-brand-700 font-medium transition-colors"
         >
-          Đăng nhập ngay
+          Log in now
         </a>
       </p>
     </div>
