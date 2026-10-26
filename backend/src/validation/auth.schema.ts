@@ -2,16 +2,16 @@ import { z } from 'zod';
 
 export const registerSchema = z.object({
   body: z.object({
-    email: z.string().email('Email không hợp lệ'),
-    password: z.string().min(8, 'Mật khẩu phải có ít nhất 8 ký tự'),
-    name: z.string().min(1, 'Tên không được để trống').max(100, 'Tên quá dài'),
+    email: z.string().email('Invalid email'),
+    password: z.string().min(8, 'Password must be at least 8 characters'),
+    name: z.string().min(1, 'Name cannot be empty').max(100, 'Name is too long'),
   }),
 });
 
 export const loginSchema = z.object({
   body: z.object({
-    email: z.string().email('Email không hợp lệ'),
-    password: z.string().min(1, 'Mật khẩu không được để trống'),
+    email: z.string().email('Invalid email'),
+    password: z.string().min(1, 'Password cannot be empty'),
   }),
 });
 

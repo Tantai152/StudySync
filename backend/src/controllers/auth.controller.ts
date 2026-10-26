@@ -28,7 +28,7 @@ export async function registerController(
     if (error instanceof ZodError) {
       res.status(400).json({
         success: false,
-        message: 'Dữ liệu không hợp lệ',
+        message: 'Invalid data',
         errorCode: 'VALIDATION_ERROR',
         details: error.flatten().fieldErrors,
       });
@@ -39,7 +39,7 @@ export async function registerController(
     if (error instanceof Error && 'code' in error && error.code === 'P2002') {
       res.status(409).json({
         success: false,
-        message: 'Email đã được đăng ký',
+        message: 'Email is already registered',
         errorCode: 'EMAIL_ALREADY_EXISTS',
       });
       return;
@@ -74,7 +74,7 @@ export async function loginController(
     if (error instanceof ZodError) {
       res.status(400).json({
         success: false,
-        message: 'Dữ liệu không hợp lệ',
+        message: 'Invalid data',
         errorCode: 'VALIDATION_ERROR',
         details: error.flatten().fieldErrors,
       });

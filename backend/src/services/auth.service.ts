@@ -51,7 +51,7 @@ export async function registerUser(input: CreateUserInput): Promise<UserResponse
   });
 
   if (existingUser) {
-    throw new AuthError('Email đã được đăng ký', 409, 'EMAIL_ALREADY_EXISTS');
+    throw new AuthError('Email is already registered', 409, 'EMAIL_ALREADY_EXISTS');
   }
 
   // Hash password
@@ -83,14 +83,14 @@ export async function loginUser(input: LoginInput): Promise<UserResponse> {
 
   // Generic error for both wrong email and wrong password (security)
   if (!user) {
-    throw new AuthError('Email hoặc mật khẩu không đúng', 401, 'INVALID_CREDENTIALS');
+    throw new AuthError('Email or password is incorrect', 401, 'INVALID_CREDENTIALS');
   }
 
   // Verify password
   const isPasswordValid = await bcrypt.compare(input.password, user.passwordHash);
 
   if (!isPasswordValid) {
-    throw new AuthError('Email hoặc mật khẩu không đúng', 401, 'INVALID_CREDENTIALS');
+    throw new AuthError('Email or password is incorrect', 401, 'INVALID_CREDENTIALS');
   }
 
   return {
