@@ -9,14 +9,14 @@ const refreshClient = axios.create({
 // 2. Biến lưu access token trên RAM
 let accessToken: string | null = null;
 let isRefreshing = false;
-let failedQueue: any[] = [];
+let failedQueue: Array<{ resolve: (value: unknown) => void; reject: (reason?: unknown) => void }> = [];
 
 export const setAccessToken = (token: string | null) => {
   accessToken = token;
 };
 
 // Hàm xử lý hàng đợi (để tránh gọi refresh 3 lần khi 3 API cùng lỗi 401 một lúc)
-const processQueue = (error: any, token: string | null = null) => {
+const processQueue = (error: unknown, token: string | null = null) => {
   failedQueue.forEach((prom) => {
     if (error) {
       prom.reject(error);

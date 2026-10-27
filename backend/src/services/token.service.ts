@@ -12,12 +12,12 @@ const hashToken = (token: string) => {
 export const generateTokens = async (userId: string, res: Response) => {
   // 1. Tạo Access Token (ngắn hạn, dùng để gọi API)
   const accessToken = jwt.sign({ userId }, env.JWT_ACCESS_SECRET, {
-    expiresIn: env.ACCESS_TOKEN_EXPIRES_IN as any,
+  expiresIn: env.ACCESS_TOKEN_EXPIRES_IN as jwt.SignOptions['expiresIn'], 
   });
 
   // 2. Tạo Refresh Token (dài hạn, dùng để lấy Access Token mới)
   const refreshToken = jwt.sign({ userId }, env.JWT_REFRESH_SECRET, {
-    expiresIn: env.REFRESH_TOKEN_EXPIRES_IN as any,
+  expiresIn: env.REFRESH_TOKEN_EXPIRES_IN as jwt.SignOptions['expiresIn'], 
   });
 
   // 3. Lưu Refresh Token (đã băm) vào Database
@@ -58,7 +58,7 @@ export const verifyRefreshToken = async (token: string) => {
     }
 
     return { userId: decoded.userId, tokenId: savedToken.id };
-  } catch (error) {
+  } catch {
     return null;
   }
 };
