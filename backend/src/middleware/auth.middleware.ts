@@ -1,6 +1,10 @@
+import type { Secret } from 'jsonwebtoken';
+import { createRequire } from 'module';
 import { Request, Response, NextFunction } from 'express';
-import { verify, type Secret } from 'jsonwebtoken';
 import { env } from '../config/env.js';
+
+const require = createRequire(import.meta.url);
+const { verify } = require('jsonwebtoken');
 
 /**
  * Authentication middleware.

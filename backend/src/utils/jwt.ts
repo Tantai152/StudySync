@@ -1,5 +1,9 @@
-import { sign, type Secret, type SignOptions } from 'jsonwebtoken';
+import type { Secret, SignOptions } from 'jsonwebtoken';
+import { createRequire } from 'module';
 import { env } from '../config/env.js';
+
+const require = createRequire(import.meta.url);
+const { sign } = require('jsonwebtoken');
 
 export interface JWTPayload {
   userId: string;
