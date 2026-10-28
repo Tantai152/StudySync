@@ -16,7 +16,7 @@ export const generateTokens = async (userId: string, res: Response) => {
   });
 
   // 2. Tạo Refresh Token (dài hạn, dùng để lấy Access Token mới)
-  const refreshToken = jwt.sign({ userId }, env.JWT_REFRESH_SECRET, {
+  const refreshToken = jwt.sign({ userId, jti: crypto.randomUUID() }, env.JWT_REFRESH_SECRET, {
   expiresIn: env.REFRESH_TOKEN_EXPIRES_IN as jwt.SignOptions['expiresIn'], 
   });
 

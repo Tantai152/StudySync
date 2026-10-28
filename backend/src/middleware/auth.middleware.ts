@@ -32,7 +32,7 @@ export function authenticate(
   const token = authHeader.slice(7); // Remove "Bearer " prefix
 
   try {
-    const secret: Secret = env.JWT_SECRET;
+    const secret: Secret = env.JWT_ACCESS_SECRET;
     const payload = verify(token, secret) as {
       userId: string;
       email: string;
