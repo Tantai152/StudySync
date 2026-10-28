@@ -1,6 +1,7 @@
 import { PrismaClient } from '../generated/prisma/client.js';
 import { PrismaMariaDb } from '@prisma/adapter-mariadb';
 import bcrypt from 'bcryptjs';
+import { generateToken, type JWTPayload } from '../utils/jwt.js';
 
 const adapter = new PrismaMariaDb({
   host: 'localhost',
@@ -31,6 +32,11 @@ export interface UserResponse {
 export interface LoginInput {
   email: string;
   password: string;
+}
+
+export interface LoginResponse {
+  user: UserResponse;
+  accessToken: string;
 }
 
  export class AuthError extends Error {
@@ -75,7 +81,7 @@ export async function registerUser(input: CreateUserInput): Promise<UserResponse
   };
 }
 
-export async function loginUser(input: LoginInput): Promise<UserResponse> {
+export async function loginUser(input: LoginInput): Promise<LoginResponse> {
   // Find user by email
   const user = await prisma.user.findUnique({
     where: { email: input.email },
@@ -93,11 +99,22 @@ export async function loginUser(input: LoginInput): Promise<UserResponse> {
     throw new AuthError('Email or password is incorrect', 401, 'INVALID_CREDENTIALS');
   }
 
-  return {
-    id: user.id,
+  const payload: JWTPayload = {
+    userId: user.id,
     email: user.email,
-    name: user.name,
-    createdAt: user.createdAt,
-    updatedAt: user.updatedAt,
+    role: 'USER', // Hardcoded until DB has role field
+  };
+
+  const accessToken = generateToken(payload);
+
+  return {
+    user: {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+    },
+    accessToken,
   };
 }
