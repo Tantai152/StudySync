@@ -1,17 +1,6 @@
-import { PrismaClient } from '../generated/prisma/client.js';
-import { PrismaMariaDb } from '@prisma/adapter-mariadb';
 import bcrypt from 'bcryptjs';
+import { prisma } from '../config/prisma.js';
 import { generateToken, type JWTPayload } from '../utils/jwt.js';
-
-const adapter = new PrismaMariaDb({
-  host: 'localhost',
-  port: 3306,
-  user: 'root',
-  password: '',
-  database: 'studysync_db',
-});
-
-const prisma = new PrismaClient({ adapter });
 
 const SALT_ROUNDS = 12;
 
@@ -39,7 +28,7 @@ export interface LoginResponse {
   accessToken: string;
 }
 
- export class AuthError extends Error {
+export class AuthError extends Error {
   constructor(
     message: string,
     public readonly statusCode: number,
