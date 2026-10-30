@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs';
-import { prisma } from '../config/prisma.js'; // IMPORT TỪ FILE CONFIG CHUNG
+import { prisma } from '../config/prisma.js';
+import { generateToken, type JWTPayload } from '../utils/jwt.js';
 
 const SALT_ROUNDS = 12;
 
@@ -20,6 +21,11 @@ export interface UserResponse {
 export interface LoginInput {
   email: string;
   password: string;
+}
+
+export interface LoginResponse {
+  user: UserResponse;
+  accessToken: string;
 }
 
 export class AuthError extends Error {
@@ -64,7 +70,7 @@ export async function registerUser(input: CreateUserInput): Promise<UserResponse
   };
 }
 
-export async function loginUser(input: LoginInput): Promise<UserResponse> {
+export async function loginUser(input: LoginInput): Promise<LoginResponse> {
   // Find user by email
   const user = await prisma.user.findUnique({
     where: { email: input.email },
@@ -82,11 +88,22 @@ export async function loginUser(input: LoginInput): Promise<UserResponse> {
     throw new AuthError('Email or password is incorrect', 401, 'INVALID_CREDENTIALS');
   }
 
-  return {
-    id: user.id,
+  const payload: JWTPayload = {
+    userId: user.id,
     email: user.email,
-    name: user.name,
-    createdAt: user.createdAt,
-    updatedAt: user.updatedAt,
+    role: 'USER', // Hardcoded until DB has role field
+  };
+
+  const accessToken = generateToken(payload);
+
+  return {
+    user: {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+    },
+    accessToken,
   };
 }

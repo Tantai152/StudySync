@@ -5,9 +5,11 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import api from '../lib/axios';
 import { loginSchema, type LoginFormData } from '../schemas/auth.schema';
+import { useAuth } from '../hooks/useAuth';
 
 export const LoginForm: React.FC = () => {
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [apiError, setApiError] = useState<string | null>(null);
 
   const {
@@ -27,10 +29,10 @@ export const LoginForm: React.FC = () => {
       return response.data;
     },
     onSuccess: (response) => {
-      if (response.success) {
+      if (response.success && response.data) {
         setApiError(null);
         reset();
-        // Redirect to home page after successful login
+        login(response.data.user, response.data.accessToken);
         navigate('/');
       }
     },
