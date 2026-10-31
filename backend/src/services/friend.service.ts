@@ -65,3 +65,72 @@ export const sendFriendRequest = async (senderId: string, receiverId: string) =>
     },
   });
 };
+
+// 3. Lấy danh sách lời mời đang chờ (chỉ lấy lời mời gửi ĐẾN mình)
+export const getPendingRequests = async (userId: string) => {
+  return await prisma.friendRequest.findMany({
+    where: { receiverId: userId, status: 'PENDING' },
+    include: {
+      sender: { select: { id: true, name: true, email: true } },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+};
+
+// 4. Chấp nhận hoặc Từ chối lời mời
+export const respondToRequest = async (requestId: string, receiverId: string, action: 'accept' | 'reject') => {
+  // Tìm lời mời xem có tồn tại và đúng là gửi cho mình không
+  const request = await prisma.friendRequest.findUnique({
+    where: { id: requestId },
+  });
+
+  if (!request || request.receiverId !== receiverId) {
+    throw new Error('Không tìm thấy lời mời hoặc bạn không có quyền xử lý');
+  }
+  if (request.status !== 'PENDING') {
+    throw new Error('Lời mời này đã được xử lý rồi');
+  }
+
+  if (action === 'reject') {
+    return await prisma.friendRequest.update({
+      where: { id: requestId },
+      data: { status: 'REJECTED' },
+    });
+  }
+
+  // Nếu Accept: Dùng Transaction để đảm bảo cập nhật lời mời VÀ tạo tình bạn cùng lúc
+  return await prisma.$transaction(async (tx) => {
+    const updatedRequest = await tx.friendRequest.update({
+      where: { id: requestId },
+      data: { status: 'ACCEPTED' },
+    });
+
+    // Sắp xếp ID để tránh trùng lặp (vd: (A,B) và (B,A) là 1 cặp)
+    // ĐÃ SỬA DÒNG DƯỚI ĐÂY:
+    const [user1Id, user2Id] = [request.senderId, request.receiverId].sort() as [string, string];
+
+    await tx.friendship.create({
+      data: { user1Id, user2Id },
+    });
+
+    return updatedRequest;
+  });
+};
+
+// 5. Lấy danh sách bạn bè
+export const getFriendsList = async (userId: string) => {
+  const friendships = await prisma.friendship.findMany({
+    where: {
+      OR: [{ user1Id: userId }, { user2Id: userId }],
+    },
+    include: {
+      user1: { select: { id: true, name: true, email: true } },
+      user2: { select: { id: true, name: true, email: true } },
+    },
+  });
+
+  // Map lại để chỉ trả về thông tin của "người bạn" (không trả về chính mình)
+  return friendships.map((f) => {
+    return f.user1Id === userId ? f.user2 : f.user1;
+  });
+};

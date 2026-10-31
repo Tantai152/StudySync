@@ -40,3 +40,45 @@ export const sendFriendRequest = async (req: Request, res: Response, next: NextF
     next(error);
   }
 };
+
+export const getRequests = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user!.userId;
+    const requests = await friendService.getPendingRequests(userId);
+    res.status(200).json({ success: true, data: requests });
+  } catch (error) { 
+    next(error); 
+  }
+};
+
+export const respondRequest = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const id = req.params.id as string;
+    const { action } = req.body; // 'accept' hoặc 'reject'
+    const userId = req.user!.userId;
+
+    if (!['accept', 'reject'].includes(action)) {
+      return res.status(400).json({ success: false, message: 'Action không hợp lệ' });
+    }
+
+    // ĐÃ SỬA DÒNG DƯỚI ĐÂY:
+    const result = await friendService.respondToRequest(id, userId, action as 'accept' | 'reject');
+    
+    res.status(200).json({ success: true, message: `Đã ${action === 'accept' ? 'chấp nhận' : 'từ chối'} lời mời`, data: result });
+  } catch (error) {
+    if (error instanceof Error) {
+      return res.status(400).json({ success: false, message: error.message });
+    }
+    next(error);
+  }
+};
+
+export const getFriends = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user!.userId;
+    const friends = await friendService.getFriendsList(userId);
+    res.status(200).json({ success: true, data: friends });
+  } catch (error) { 
+    next(error); 
+  }
+};
