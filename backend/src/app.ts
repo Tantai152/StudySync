@@ -6,6 +6,7 @@
   import { authRouter } from './routes/auth.route.js';
   import { adminRouter } from './routes/admin.route.js';
   import cookieParser from 'cookie-parser';
+  import { friendRouter } from './routes/friend.route.js';
 
   export function createApp() {
     const app = express();
@@ -18,6 +19,7 @@
 
     app.use('/api/v1/health', healthRouter);
     app.use('/api/v1/auth', authRouter);
+    app.use('/api/v1', friendRouter); 
     app.use('/api/v1/admin', adminRouter);
 
     app.use((_req, res) => {

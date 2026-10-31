@@ -4,6 +4,7 @@ import LoginPage from '../pages/LoginPage';
 import RegisterPage from '../pages/RegisterPage';
 import RoomPage from '../pages/RoomPage';
 import NotFoundPage from '../pages/NotFoundPage';
+import SearchUsersPage from '../pages/SearchUsersPage'; // <-- Thêm import này
 import ProtectedRoute from '../components/ProtectedRoute';
 
 export const router = createBrowserRouter([
@@ -16,7 +17,8 @@ export const router = createBrowserRouter([
     path: '/register',
     element: <RegisterPage />,
   },
-  // Protected routes
+  
+  // Protected routes (Phải đăng nhập mới vào được)
   {
     element: <ProtectedRoute />,
     children: [
@@ -25,11 +27,16 @@ export const router = createBrowserRouter([
         element: <HomePage />,
       },
       {
+        path: '/search', // <-- Thêm route mới cho trang tìm kiếm
+        element: <SearchUsersPage />,
+      },
+      {
         path: '/rooms/:roomId',
         element: <RoomPage />,
       },
     ],
   },
+  
   // 404
   {
     path: '*',
