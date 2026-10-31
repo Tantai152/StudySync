@@ -7,6 +7,7 @@ import NotFoundPage from '../pages/NotFoundPage';
 import SearchUsersPage from '../pages/SearchUsersPage';
 import FriendsPage from '../pages/FriendsPage'; // <-- Import trang mới
 import ProtectedRoute from '../components/ProtectedRoute';
+import CreateRoomPage from '../pages/CreateRoomPage';
 
 export const router = createBrowserRouter([
   // Public routes
@@ -34,6 +35,10 @@ export const router = createBrowserRouter([
       {
         path: '/friends', // <-- Thêm route mới ở đây
         element: <FriendsPage />,
+      },
+      {
+        path: '/rooms/create',
+        element: <CreateRoomPage />,
       },
       {
         path: '/rooms/:roomId',

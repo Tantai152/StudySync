@@ -7,6 +7,8 @@
   import { adminRouter } from './routes/admin.route.js';
   import cookieParser from 'cookie-parser';
   import { friendRouter } from './routes/friend.route.js';
+  import { roomRouter } from './routes/room.route.js';
+  import { inviteRouter } from './routes/invite.route.js';
 
   export function createApp() {
     const app = express();
@@ -21,6 +23,8 @@
     app.use('/api/v1/auth', authRouter);
     app.use('/api/v1', friendRouter); 
     app.use('/api/v1/admin', adminRouter);
+    app.use('/api/v1/rooms', roomRouter);
+    app.use('/api/v1/rooms', inviteRouter);
 
     app.use((_req, res) => {
       res.status(404).json({
