@@ -18,9 +18,9 @@ export interface JWTPayload {
  * @returns The signed JWT string
  */
 export function generateToken(payload: JWTPayload): string {
-  const secret: Secret = env.JWT_SECRET;
+  const secret: Secret = env.JWT_ACCESS_SECRET;
   const options: SignOptions = {
-    expiresIn: env.JWT_EXPIRES_IN as SignOptions['expiresIn'],
+    expiresIn: env.ACCESS_TOKEN_EXPIRES_IN as SignOptions['expiresIn'],
   };
 
   return sign(payload, secret, options);
