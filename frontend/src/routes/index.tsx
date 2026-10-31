@@ -4,7 +4,8 @@ import LoginPage from '../pages/LoginPage';
 import RegisterPage from '../pages/RegisterPage';
 import RoomPage from '../pages/RoomPage';
 import NotFoundPage from '../pages/NotFoundPage';
-import SearchUsersPage from '../pages/SearchUsersPage'; // <-- Thêm import này
+import SearchUsersPage from '../pages/SearchUsersPage';
+import FriendsPage from '../pages/FriendsPage'; // <-- Import trang mới
 import ProtectedRoute from '../components/ProtectedRoute';
 
 export const router = createBrowserRouter([
@@ -18,7 +19,7 @@ export const router = createBrowserRouter([
     element: <RegisterPage />,
   },
   
-  // Protected routes (Phải đăng nhập mới vào được)
+  // Protected routes
   {
     element: <ProtectedRoute />,
     children: [
@@ -27,8 +28,12 @@ export const router = createBrowserRouter([
         element: <HomePage />,
       },
       {
-        path: '/search', // <-- Thêm route mới cho trang tìm kiếm
+        path: '/search',
         element: <SearchUsersPage />,
+      },
+      {
+        path: '/friends', // <-- Thêm route mới ở đây
+        element: <FriendsPage />,
       },
       {
         path: '/rooms/:roomId',
