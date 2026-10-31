@@ -11,11 +11,10 @@ const envSchema = z.object({
   DB_PASSWORD: z.string().default('studysync'),
   DB_NAME: z.string().default('studysync'),
   CORS_ORIGIN: z.string().default('http://localhost:5173'),
-  JWT_SECRET: z.string().min(1, 'JWT_SECRET is required'),
-  JWT_EXPIRES_IN: z.string().default('7d'),
-
-  JWT_ACCESS_SECRET: z.string(),
-  JWT_REFRESH_SECRET: z.string(),
+  
+  // Đã xóa JWT_SECRET và JWT_EXPIRES_IN thừa thãi
+  JWT_ACCESS_SECRET: z.string().min(1, 'JWT_ACCESS_SECRET is required'),
+  JWT_REFRESH_SECRET: z.string().min(1, 'JWT_REFRESH_SECRET is required'),
   ACCESS_TOKEN_EXPIRES_IN: z.string().default('15m'),
   REFRESH_TOKEN_EXPIRES_IN: z.string().default('7d'),
 });

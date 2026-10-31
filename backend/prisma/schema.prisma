@@ -20,10 +20,15 @@ model User {
 
   refreshTokens RefreshToken[]
 
+  sentRequests     FriendRequest[] @relation("SentRequests")
+  receivedRequests FriendRequest[] @relation("ReceivedRequests")
+  friendshipsSent  Friendship[]    @relation("FriendshipUser1")
+  friendshipsRecv  Friendship[]    @relation("FriendshipUser2")
+
   @@map("users")
 }
 
-// THÊM MODEL NÀY
+
 model RefreshToken {
   id        String    @id @default(cuid())
   userId    String    @map("user_id")
@@ -36,4 +41,34 @@ model RefreshToken {
 
   @@index([userId])
   @@map("refresh_tokens")
+}
+
+model FriendRequest {
+  id         String   @id @default(cuid())
+  senderId   String   @map("sender_id")
+  receiverId String   @map("receiver_id")
+  status     String   @default("PENDING") // PENDING, ACCEPTED, REJECTED
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  sender   User @relation("SentRequests", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver User @relation("ReceivedRequests", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  // Đảm bảo không thể gửi 2 lời mời giống hệt nhau
+  @@unique([senderId, receiverId]) 
+  @@map("friend_requests")
+}
+
+model Friendship {
+  id        String   @id @default(cuid())
+  user1Id   String   @map("user1_id")
+  user2Id   String   @map("user2_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user1 User @relation("FriendshipUser1", fields: [user1Id], references: [id], onDelete: Cascade)
+  user2 User @relation("FriendshipUser2", fields: [user2Id], references: [id], onDelete: Cascade)
+
+  // Đảm bảo 2 người chỉ có 1 bản ghi quan hệ bạn bè
+  @@unique([user1Id, user2Id])
+  @@map("friendships")
 }
