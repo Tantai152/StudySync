@@ -1,6 +1,11 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
+import { useAuth } from '../hooks/useAuth';
+import { useRoomMembers } from '../hooks/useRoomMembers';
+import { useKickMember } from '../hooks/useKickMember';
+import { useLeaveRoom } from '../hooks/useLeaveRoom';
+import { RoomMemberList } from '../components/RoomMemberList';
 import { generateInviteLinkApi } from '../api/room.api';
 import { AxiosError } from 'axios';
 
@@ -16,11 +21,16 @@ interface ErrorResponse {
 
 const RoomPage = () => {
   const { roomId } = useParams<{ roomId: string }>();
+  const { user } = useAuth();
   const [inviteLink, setInviteLink] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState('');
+  const [redirectToHome, setRedirectToHome] = useState(false);
 
-  // Khởi tạo Mutation để gọi API
-  const mutation = useMutation({
+  // Hooks phải được gọi trước mọi early return (React Rules of Hooks)
+  const safeRoomId = roomId ?? '';
+
+  // Khởi tạo Mutation để gọi API tạo link mời
+  const inviteMutation = useMutation({
     mutationFn: generateInviteLinkApi,
     onSuccess: (data: InviteData) => {
       setInviteLink(data.link);
@@ -33,7 +43,7 @@ const RoomPage = () => {
 
   const handleGenerateLink = () => {
     if (roomId) {
-      mutation.mutate(roomId);
+      inviteMutation.mutate(roomId);
     }
   };
 
@@ -45,15 +55,66 @@ const RoomPage = () => {
     }
   };
 
+  // TanStack Query: lấy danh sách thành viên phòng
+  const { data: members = [], isLoading: membersLoading } = useRoomMembers(
+    safeRoomId || undefined
+  );
+
+  // Xác định vai trò của user hiện tại trong phòng từ dữ liệu thành viên
+  const currentUserId = user?.id ?? null;
+  const currentUserMembership = members.find((m) => m.userId === currentUserId);
+  const isOwner = currentUserMembership?.role === 'OWNER';
+
+  // Mutation: kick thành viên
+  const kickMutation = useKickMember(safeRoomId);
+
+  // Mutation: rời phòng
+  const leaveMutation = useLeaveRoom(safeRoomId, () => {
+    setRedirectToHome(true);
+  });
+
+  const handleKick = (targetUserId: string) => {
+    kickMutation.mutate(targetUserId);
+  };
+
+  const handleLeave = () => {
+    leaveMutation.mutate();
+  };
+
+  if (!roomId || redirectToHome) {
+    return null;
+  }
+
   return (
     <div className="max-w-3xl mx-auto p-6 mt-10">
       <div className="bg-white p-8 rounded-lg shadow-md border">
         <h1 className="text-3xl font-bold mb-2 text-gray-800">Chi tiết Phòng Học</h1>
         <p className="text-gray-500 mb-8">ID Phòng: {roomId}</p>
 
+        {/* Danh sách thành viên */}
+        <div className="border-t pt-6 mb-8">
+          <h2 className="text-xl font-semibold mb-4 text-gray-800">Thành viên phòng</h2>
+
+          {membersLoading ? (
+            <div className="h-40 flex items-center justify-center text-gray-500">
+              Đang tải danh sách thành viên...
+            </div>
+          ) : (
+            <RoomMemberList
+              members={members}
+              currentUserId={currentUserId}
+              isOwner={isOwner}
+              isKicking={kickMutation.isPending}
+              isLeaving={leaveMutation.isPending}
+              onKick={handleKick}
+              onLeave={handleLeave}
+            />
+          )}
+        </div>
+
         <div className="border-t pt-6">
           <h2 className="text-xl font-semibold mb-4 text-blue-600">Mời bạn bè vào phòng</h2>
-          
+
           {errorMsg && (
             <div className="mb-4 text-red-500 font-medium">{errorMsg}</div>
           )}
@@ -62,10 +123,10 @@ const RoomPage = () => {
           {!inviteLink ? (
             <button
               onClick={handleGenerateLink}
-              disabled={mutation.isPending}
+              disabled={inviteMutation.isPending}
               className="bg-blue-500 text-white px-6 py-2 rounded hover:bg-blue-600 disabled:bg-gray-400 transition-colors"
             >
-              {mutation.isPending ? 'Đang tạo link...' : 'Tạo Link Mời'}
+              {inviteMutation.isPending ? 'Đang tạo link...' : 'Tạo Link Mời'}
             </button>
           ) : (
             <div className="space-y-4 bg-gray-50 p-4 rounded border">
