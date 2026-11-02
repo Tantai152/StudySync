@@ -1,5 +1,11 @@
 import { Router } from 'express';
-import { createRoom, getMyRooms } from '../controllers/room.controller.js';
+import {
+  createRoom,
+  getMyRooms,
+  getMembers,
+  kickMember,
+  leaveRoom,
+} from '../controllers/room.controller.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 
 export const roomRouter = Router();
@@ -8,3 +14,8 @@ roomRouter.use(authenticate); // Yêu cầu đăng nhập mới được dùng
 
 roomRouter.post('/', createRoom); // POST /api/v1/rooms
 roomRouter.get('/', getMyRooms);  // GET /api/v1/rooms
+
+// Thành viên phòng
+roomRouter.get('/:id/members', getMembers);                 // GET /api/v1/rooms/:id/members
+roomRouter.delete('/:id/members/:userId', kickMember);      // DELETE /api/v1/rooms/:id/members/:userId
+roomRouter.delete('/:id/members/me', leaveRoom);            // DELETE /api/v1/rooms/:id/members/me
