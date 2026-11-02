@@ -26,6 +26,7 @@ model User {
   friendshipsRecv  Friendship[]    @relation("FriendshipUser2")
   roomsOwned    Room[]       @relation("RoomOwner")
   roomMembers   RoomMember[]
+  messages      Message[]    // Tin nhắn của user trong các phòng
 
   @@map("users")
 }
@@ -86,7 +87,8 @@ model Room {
   owner User @relation("RoomOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   
   members RoomMember[]
-  invites Invite[] 
+  invites Invite[]
+  messages Message[] // Lịch sử chat trong phòng
 
   @@map("rooms")
 }
@@ -116,4 +118,19 @@ model Invite {
 
   @@index([roomId])
   @@map("invites")
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  clientId  String?   @unique // Idempotency key cho Socket.IO sau này (tùy chọn)
+  content   String   @db.VarChar(1000)
+  roomId    String   @map("room_id")
+  senderId  String   @map("sender_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  sender User @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([roomId, createdAt]) // Composite index cho cursor pagination
+  @@map("messages")
 }
