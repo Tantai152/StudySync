@@ -8,6 +8,7 @@ import SearchUsersPage from '../pages/SearchUsersPage';
 import FriendsPage from '../pages/FriendsPage'; // <-- Import trang mới
 import ProtectedRoute from '../components/ProtectedRoute';
 import CreateRoomPage from '../pages/CreateRoomPage';
+import JoinRoomPage from '../pages/JoinRoomPage';
 
 export const router = createBrowserRouter([
   // Public routes
@@ -19,7 +20,13 @@ export const router = createBrowserRouter([
     path: '/register',
     element: <RegisterPage />,
   },
-  
+  {
+    // Route public: trang tự kiểm tra auth và redirect sang /login
+    // kèm returnUrl để sau khi đăng nhập quay lại đúng link join
+    path: '/join',
+    element: <JoinRoomPage />,
+  },
+
   // Protected routes
   {
     element: <ProtectedRoute />,

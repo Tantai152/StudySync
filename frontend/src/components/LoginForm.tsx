@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -9,8 +9,12 @@ import { useAuth } from '../hooks/useAuth';
 
 export const LoginForm: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { login } = useAuth();
   const [apiError, setApiError] = useState<string | null>(null);
+
+  // URL cần quay về sau khi đăng nhập (VD: /join?token=xxx từ link mời)
+  const returnUrl = (location.state as { returnUrl?: string } | null)?.returnUrl;
 
   const {
     register,
@@ -33,7 +37,7 @@ export const LoginForm: React.FC = () => {
         setApiError(null);
         reset();
         login(response.data.user, response.data.accessToken);
-        navigate('/');
+        navigate(returnUrl || '/', { replace: true });
       }
     },
     onError: (error: unknown) => {
