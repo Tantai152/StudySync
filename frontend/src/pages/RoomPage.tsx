@@ -6,6 +6,7 @@ import { useRoomMembers } from '../hooks/useRoomMembers';
 import { useKickMember } from '../hooks/useKickMember';
 import { useLeaveRoom } from '../hooks/useLeaveRoom';
 import { RoomMemberList } from '../components/RoomMemberList';
+import { ChatBox } from '../components/ChatBox';
 import { generateInviteLinkApi } from '../api/room.api';
 import { AxiosError } from 'axios';
 
@@ -86,68 +87,92 @@ const RoomPage = () => {
   }
 
   return (
-    <div className="max-w-3xl mx-auto p-6 mt-10">
-      <div className="bg-white p-8 rounded-lg shadow-md border">
-        <h1 className="text-3xl font-bold mb-2 text-gray-800">Chi tiết Phòng Học</h1>
-        <p className="text-gray-500 mb-8">ID Phòng: {roomId}</p>
-
-        {/* Danh sách thành viên */}
-        <div className="border-t pt-6 mb-8">
-          <h2 className="text-xl font-semibold mb-4 text-gray-800">Thành viên phòng</h2>
-
-          {membersLoading ? (
-            <div className="h-40 flex items-center justify-center text-gray-500">
-              Đang tải danh sách thành viên...
+    <div className="max-w-7xl mx-auto p-6 mt-6">
+      <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+        {/* Header phòng */}
+        <div className="p-6 border-b border-gray-200">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">
+                Phòng học #{roomId.slice(-6)}
+              </h1>
+              <p className="text-sm text-gray-500 mt-1">
+                ID phòng: {roomId}
+              </p>
             </div>
-          ) : (
-            <RoomMemberList
-              members={members}
-              currentUserId={currentUserId}
-              isOwner={isOwner}
-              isKicking={kickMutation.isPending}
-              isLeaving={leaveMutation.isPending}
-              onKick={handleKick}
-              onLeave={handleLeave}
-            />
-          )}
-        </div>
 
-        <div className="border-t pt-6">
-          <h2 className="text-xl font-semibold mb-4 text-blue-600">Mời bạn bè vào phòng</h2>
-
-          {errorMsg && (
-            <div className="mb-4 text-red-500 font-medium">{errorMsg}</div>
-          )}
-
-          {/* Nếu chưa có link thì hiện nút Tạo. Có link rồi thì hiện ô input và nút Copy */}
-          {!inviteLink ? (
-            <button
-              onClick={handleGenerateLink}
-              disabled={inviteMutation.isPending}
-              className="bg-blue-500 text-white px-6 py-2 rounded hover:bg-blue-600 disabled:bg-gray-400 transition-colors"
-            >
-              {inviteMutation.isPending ? 'Đang tạo link...' : 'Tạo Link Mời'}
-            </button>
-          ) : (
-            <div className="space-y-4 bg-gray-50 p-4 rounded border">
-              <p className="text-sm text-gray-600 font-medium">Link mời của bạn đã sẵn sàng:</p>
-              <div className="flex items-center space-x-2">
+            {/* Nút tạo link mời (dạng nhỏ, nằm header)} */}
+            {!inviteLink ? (
+              <button
+                onClick={handleGenerateLink}
+                disabled={inviteMutation.isPending}
+                className="px-4 py-2 text-sm font-medium text-white bg-brand-600 rounded-lg hover:bg-blue-700 disabled:opacity-60 transition-colors"
+              >
+                {inviteMutation.isPending ? 'Đang tạo...' : 'Tạo Link Mời'}
+              </button>
+            ) : (
+              <div className="flex items-center gap-2">
                 <input
                   type="text"
                   readOnly
                   value={inviteLink}
-                  className="w-full p-2 border border-gray-300 rounded bg-white text-sm"
+                  className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
                 <button
                   onClick={copyToClipboard}
-                  className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 whitespace-nowrap"
+                  className="px-3 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 whitespace-nowrap transition-colors"
                 >
-                  Copy Link
+                  Copy
                 </button>
               </div>
-              <p className="text-xs text-gray-500">Link này sẽ hết hạn sau 24 giờ.</p>
+            )}
+
+            {errorMsg && (
+              <p className="mt-2 text-sm text-red-600">{errorMsg}</p>
+            )}
+          </div>
+        </div>
+
+        {/* Nội dung chính: 2 cột (desktop) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 p-6">
+          {/* Cột trái: Danh sách thành viên (3 cột trên desktop) */}
+          <div className="lg:col-span-3">
+            <div className="border border-gray-200 rounded-lg overflow-hidden flex flex-col h-full">
+              <div className="p-4 border-b border-gray-200 bg-gray-50">
+                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-green-500" />
+                  Thành viên phòng ({members.length})
+                </h3>
+              </div>
+
+              <div className="flex-1 overflow-y-auto">
+                {membersLoading ? (
+                  <div className="p-4 flex items-center justify-center text-gray-500">
+                    Đang tải...
+                  </div>
+                ) : members.length === 0 ? (
+                  <div className="p-8 text-center text-gray-500">
+                    Chưa có thành viên nào
+                  </div>
+                ) : (
+                  <RoomMemberList
+                    members={members}
+                    currentUserId={currentUserId}
+                    isOwner={isOwner}
+                    isKicking={kickMutation.isPending}
+                    isLeaving={leaveMutation.isPending}
+                    onKick={handleKick}
+                    onLeave={handleLeave}
+                  />
+                )}
+              </div>
             </div>
-          )}
+          </div>
+
+          {/* Cột phải: Khung chat (9 cột trên desktop) */}
+          <div className="lg:col-span-9">
+            <ChatBox roomId={safeRoomId} />
+          </div>
         </div>
       </div>
     </div>
