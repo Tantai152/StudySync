@@ -29,6 +29,22 @@ export const joinRoomApi = async (token: string): Promise<JoinRoomResult> => {
   return response.data.data; // Trả về { roomId, roomName }
 };
 
+// Danh sách phòng của user hiện tại
+export interface RoomItem {
+  id: string;
+  name: string;
+  description?: string | null;
+  ownerId: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Gọi API lấy danh sách phòng của user hiện tại
+export const getRoomsApi = async (): Promise<RoomItem[]> => {
+  const response = await api.get('/rooms');
+  return response.data.data;
+};
+
 // Thông tin thành viên phòng trả về từ API
 export interface RoomMemberItem {
   id: string;
