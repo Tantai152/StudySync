@@ -23,6 +23,12 @@ export const Navbar = () => {
           <div className="flex items-center gap-4">
             {user ? (
               <div className="flex items-center gap-3">
+                <Link
+                  to="/friends"
+                  className="text-sm font-medium text-gray-700 hover:text-gray-900"
+                >
+                  Bạn bè
+                </Link>
                 <span className="text-sm text-gray-700 hidden sm:block">
                   {user.name}
                 </span>
@@ -36,6 +42,12 @@ export const Navbar = () => {
               </div>
             ) : (
               <div className="flex items-center gap-3">
+                <Link
+                  to="/"
+                  className="text-sm font-medium text-gray-700 hover:text-gray-900"
+                >
+                  Trang chủ
+                </Link>
                 <Link
                   to="/login"
                   className="text-sm font-medium text-gray-700 hover:text-gray-900"
