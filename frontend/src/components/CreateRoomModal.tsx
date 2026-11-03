@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
+import { zodResolverV4 } from '../lib/zodResolver';
 import { useMutation } from '@tanstack/react-query';
 import { useToast } from './ToastContext';
 import { createRoomSchema, type CreateRoomFormData } from '../schemas/room.schema';
@@ -26,7 +26,7 @@ export const CreateRoomModal = ({
     reset,
     formState: { errors },
   } = useForm<CreateRoomFormData>({
-    resolver: zodResolver(createRoomSchema),
+    resolver: zodResolverV4(createRoomSchema),
     mode: 'onBlur',
   });
 

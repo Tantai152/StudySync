@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
+import { zodResolverV4 } from '../lib/zodResolver';
 import api from '../lib/axios';
 import { loginSchema, type LoginFormData } from '../schemas/auth.schema';
 import { useAuth } from '../hooks/useAuth';
@@ -23,7 +23,7 @@ export const LoginForm: React.FC = () => {
     clearErrors,
     formState: { errors },
   } = useForm<LoginFormData>({
-    resolver: zodResolver(loginSchema),
+    resolver: zodResolverV4(loginSchema),
     mode: 'onBlur',
   });
 

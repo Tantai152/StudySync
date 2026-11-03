@@ -69,7 +69,8 @@ const initialsFrom = (userId: string): string => {
 const VoicePanel = ({ roomId }: VoicePanelProps) => {
   const { user } = useAuth();
   const currentUserId = user?.id ?? '';
-  const { state, peers, error, join, leave } = useVoiceRoom({ roomId });
+  const { state, peers, error, isMuted, join, leaveVoice, toggleMute } =
+    useVoiceRoom({ roomId });
 
   const audioRefs = useRef<Map<string, HTMLAudioElement>>(new Map());
 
@@ -134,7 +135,11 @@ const VoicePanel = ({ roomId }: VoicePanelProps) => {
             {initialsFrom(currentUserId)}
           </div>
           <span className="text-xs text-gray-700 truncate flex-1">Bạn</span>
-          <MicIcon className="text-emerald-600" />
+          {isMuted ? (
+            <MicOffIcon className="text-gray-400" />
+          ) : (
+            <MicIcon className="text-emerald-600" />
+          )}
         </div>
 
         {/* Peers */}
@@ -161,8 +166,32 @@ const VoicePanel = ({ roomId }: VoicePanelProps) => {
           </div>
         ))}
       </div>
+
+      {/* Mute / Unmute button */}
       <button
-        onClick={leave}
+        onClick={toggleMute}
+        className={`w-full px-4 py-2 rounded-lg font-semibold text-white transition-colors flex items-center justify-center gap-2 ${
+          isMuted
+            ? 'bg-rose-100 text-rose-700 hover:bg-rose-200'
+            : 'bg-emerald-600 hover:bg-emerald-700'
+        }`}
+      >
+        {isMuted ? (
+          <>
+            <MicOffIcon />
+            <span>Unmute</span>
+          </>
+        ) : (
+          <>
+            <MicIcon />
+            <span>Mute</span>
+          </>
+        )}
+      </button>
+
+      {/* Leave voice button */}
+      <button
+        onClick={leaveVoice}
         className="w-full px-4 py-2 rounded-lg font-semibold text-white bg-rose-500 hover:bg-rose-600 transition-colors flex items-center justify-center gap-2"
       >
         <PhoneOffIcon />
@@ -181,7 +210,7 @@ const VoicePanel = ({ roomId }: VoicePanelProps) => {
         className="w-full px-4 py-2 rounded-lg font-semibold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2"
       >
         <MicIcon />
-        <span>Thử lại</span>
+        <span>Tham gia lại</span>
       </button>
     </div>
   );

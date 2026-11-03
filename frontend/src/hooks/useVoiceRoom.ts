@@ -17,21 +17,24 @@ interface UseVoiceRoomReturn {
   state: VoiceState;
   peers: PeerInfo[];
   error: string | null;
+  isMuted: boolean;
   join: () => Promise<void>;
-  leave: () => void;
+  leaveVoice: () => void;
+  toggleMute: () => void;
 }
 
 export function useVoiceRoom({ roomId }: { roomId: string }): UseVoiceRoomReturn {
   const [state, setState] = useState<VoiceState>('idle');
   const [peers, setPeers] = useState<PeerInfo[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [isMuted, setIsMuted] = useState(false);
 
   const socketRef = useRef<Socket | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const peerConnectionsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
   const stateRef = useRef<VoiceState>('idle');
+  const isUserInitiatedLeave = useRef(false);
 
-  // Giữ stateRef đồng bộ để tránh stale closure trong join/disconnect
   stateRef.current = state;
 
   const createPeerConnection = useCallback(
@@ -102,6 +105,18 @@ export function useVoiceRoom({ roomId }: { roomId: string }): UseVoiceRoomReturn
     setPeers((prev) => prev.filter((p) => p.userId !== peerUserId));
   }, []);
 
+  const toggleMute = useCallback(() => {
+    if (stateRef.current !== 'connected') return;
+    const stream = localStreamRef.current;
+    if (!stream) return;
+    const audioTrack = stream.getAudioTracks()[0];
+    if (!audioTrack) return;
+    const newMuted = !audioTrack.enabled;
+    audioTrack.enabled = !newMuted;
+    setIsMuted(newMuted);
+    socketRef.current?.emit('voice:mute', { roomId, muted: newMuted });
+  }, [roomId]);
+
   const join = useCallback(async () => {
     console.log('[voice-debug] join called');
     setError(null);
@@ -157,7 +172,6 @@ export function useVoiceRoom({ roomId }: { roomId: string }): UseVoiceRoomReturn
     socket.on(
       'voice:roster',
       (members: { userId: string; muted: boolean }[]) => {
-        // NGAY LẬP TỨC chuyển sang connected dù roster rỗng hay có người
         setState('connected');
 
         members.forEach(({ userId: peerUserId, muted }) => {
@@ -188,9 +202,7 @@ export function useVoiceRoom({ roomId }: { roomId: string }): UseVoiceRoomReturn
     socket.on(
       'voice:peer-joined',
       ({ userId: peerUserId }: { userId: string }) => {
-        // Đảm bảo state = 'connected' nếu user join sau
         setState('connected');
-        // Người mới vào là offerer; mình chỉ đợi voice:offer
         setPeers((prev) => {
           if (prev.some((p) => p.userId === peerUserId)) return prev;
           return [
@@ -274,8 +286,9 @@ export function useVoiceRoom({ roomId }: { roomId: string }): UseVoiceRoomReturn
     );
 
     socket.on('disconnect', () => {
-      if (stateRef.current === 'connected' || stateRef.current === 'connecting') {
-        // Socket already disconnected, just clean local state
+      if (isUserInitiatedLeave.current) {
+        // User intentionally left — clean up silently
+        isUserInitiatedLeave.current = false;
         localStreamRef.current?.getTracks().forEach((track) => track.stop());
         localStreamRef.current = null;
         peerConnectionsRef.current.forEach((pc) => pc.close());
@@ -283,6 +296,21 @@ export function useVoiceRoom({ roomId }: { roomId: string }): UseVoiceRoomReturn
         setPeers([]);
         setError(null);
         setState('idle');
+        setIsMuted(false);
+        socketRef.current = null;
+        return;
+      }
+
+      if (stateRef.current === 'connected' || stateRef.current === 'connecting') {
+        // Unexpected disconnect (mất mạng, server sập)
+        localStreamRef.current?.getTracks().forEach((track) => track.stop());
+        localStreamRef.current = null;
+        peerConnectionsRef.current.forEach((pc) => pc.close());
+        peerConnectionsRef.current.clear();
+        setPeers([]);
+        setError('Mất kết nối tới server. Vui lòng tham gia lại.');
+        setState('error');
+        setIsMuted(false);
         socketRef.current = null;
       }
     });
@@ -292,8 +320,10 @@ export function useVoiceRoom({ roomId }: { roomId: string }): UseVoiceRoomReturn
     cleanupPeer,
   ]);
 
-  const leave = useCallback(() => {
-    console.log('[voice-debug] leave called');
+  const leaveVoice = useCallback(() => {
+    console.log('[voice-debug] leaveVoice called');
+    isUserInitiatedLeave.current = true;
+
     // Stop local tracks
     localStreamRef.current?.getTracks().forEach((track) => track.stop());
     localStreamRef.current = null;
@@ -312,19 +342,39 @@ export function useVoiceRoom({ roomId }: { roomId: string }): UseVoiceRoomReturn
     setPeers([]);
     setError(null);
     setState('idle');
+    setIsMuted(false);
+    isUserInitiatedLeave.current = false;
   }, [roomId]);
 
-  // Cleanup on unmount — chỉ chạy 1 lần, dependency []
+  // Cleanup on tab close / beforeunload — chỉ dọn dẹp local, không emit leave
+  const handleUnload = useCallback(() => {
+    if (stateRef.current === 'connected' || stateRef.current === 'connecting') {
+      localStreamRef.current?.getTracks().forEach((track) => track.stop());
+      localStreamRef.current = null;
+      peerConnectionsRef.current.forEach((pc) => pc.close());
+      peerConnectionsRef.current.clear();
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+    }
+  }, []);
+
   useEffect(() => {
-    console.log('[voice-debug] cleanup ran');
+    window.addEventListener('beforeunload', handleUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleUnload);
+    };
+  }, [handleUnload]);
+
+  // Cleanup on component unmount
+  useEffect(() => {
     const peerConnections = peerConnectionsRef.current;
     const socket = socketRef.current;
     const localStream = localStreamRef.current;
 
     return () => {
       if (stateRef.current === 'connected' || stateRef.current === 'connecting') {
-        // Gọi logic dọn dẹp trực tiếp thay qua leave() để tránh setState
-        // trên component đã unmount (không gây reset về idle sau join)
         localStream?.getTracks().forEach((track) => track.stop());
         peerConnections.forEach((pc) => pc.close());
         if (socket) {
@@ -333,9 +383,10 @@ export function useVoiceRoom({ roomId }: { roomId: string }): UseVoiceRoomReturn
         setPeers([]);
         setError(null);
         setState('idle');
+        setIsMuted(false);
       }
     };
   }, []);
 
-  return { state, peers, error, join, leave };
+  return { state, peers, error, isMuted, join, leaveVoice, toggleMute };
 }
