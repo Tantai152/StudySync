@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
+import { zodResolverV4 } from '../lib/zodResolver';
 import api from '../lib/axios';
 import { registerSchema, type RegisterFormData } from '../schemas/auth.schema';
 
@@ -23,7 +23,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
     clearErrors,
     formState: { errors },
   } = useForm<RegisterFormData>({
-    resolver: zodResolver(registerSchema),
+    resolver: zodResolverV4(registerSchema),
     mode: 'onBlur',
   });
 
