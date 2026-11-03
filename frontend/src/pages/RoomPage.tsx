@@ -3,7 +3,9 @@ import { useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getMessagesApi } from '../api/room.api';
 import api, { getAccessToken } from '../lib/axios';
-import { connectSocket } from '../lib/socket';
+import { connectSocket, getSocket } from '../lib/socket'; // Import getSocket
+import { useWebRTC } from '../hooks/useWebRTC';
+import AudioPlayer from '../components/AudioPlayer';
 
 interface Message {
   id: string;
@@ -21,7 +23,13 @@ const RoomPage = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
 
-  // 1. "Mồi" Axios bằng API /friends để tự động Refresh Token nếu bị 401
+  // Lấy Socket Instance
+  const socket = getSocket() || connectSocket();
+
+  // Gọi Hook WebRTC
+  const { isInVoice, isMuted, remoteStreams, joinVoice, leaveVoice, toggleMute } = useWebRTC(socket, roomId);
+
+  // 1. "Mồi" Axios bằng API /friends để tự động Refresh Token
   const { data: friendsData, isLoading: isLoadingUser } = useQuery({
     queryKey: ['currentUser'],
     queryFn: async () => {
@@ -61,10 +69,7 @@ const RoomPage = () => {
 
   // 4. Khởi tạo Socket
   useEffect(() => {
-    if (!roomId || !currentUserId) return;
-
-    const socket = connectSocket(); 
-    if (!socket) return;
+    if (!roomId || !currentUserId || !socket) return;
 
     const handleConnect = () => {
       setIsConnected(true);
@@ -76,7 +81,6 @@ const RoomPage = () => {
     const handleNewMessage = (newMessage: Message) => {
       queryClient.setQueryData(['messages', roomId], (oldMessages: Message[] | undefined) => {
         if (!oldMessages) return [newMessage];
-        // Chống trùng lặp tin nhắn
         const isDuplicate = oldMessages.some(m => m.id === newMessage.id || (m.clientId && m.clientId === newMessage.clientId));
         if (isDuplicate) return oldMessages;
         return [...oldMessages, newMessage];
@@ -96,23 +100,20 @@ const RoomPage = () => {
       socket.off('disconnect', handleDisconnect);
       socket.off('chat:new_message', handleNewMessage);
     };
-  }, [roomId, currentUserId, queryClient]);
+  }, [roomId, currentUserId, queryClient, socket]);
 
-  // 5. Tự động cuộn xuống tin nhắn mới nhất
+  // 5. Tự động cuộn
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // 6. Xử lý gửi tin nhắn
+  // 6. Gửi tin nhắn
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
-    if (inputMsg.trim()) {
-      const socket = connectSocket();
-      if (socket) {
-        const clientId = Date.now().toString();
-        socket.emit('chat:send', { roomId, content: inputMsg, clientId });
-        setInputMsg('');
-      }
+    if (inputMsg.trim() && socket) {
+      const clientId = Date.now().toString();
+      socket.emit('chat:send', { roomId, content: inputMsg, clientId });
+      setInputMsg('');
     }
   };
 
@@ -124,12 +125,37 @@ const RoomPage = () => {
     <div className="flex flex-col h-[85vh] max-w-4xl mx-auto my-6 bg-white border rounded-xl shadow-lg overflow-hidden">
       {/* HEADER */}
       <div className="bg-blue-600 text-white p-4 flex justify-between items-center shadow-md z-10">
-        <h1 className="text-xl font-bold">Phòng Chat</h1>
-        <div className="flex items-center gap-2 text-sm bg-blue-700 px-3 py-1 rounded-full">
-          <span className={`w-3 h-3 rounded-full ${isConnected ? 'bg-green-400' : 'bg-red-400 animate-pulse'}`}></span>
-          {isConnected ? 'Trực tuyến' : 'Đang kết nối...'}
+        <div>
+          <h1 className="text-xl font-bold">Phòng Chat</h1>
+          <div className="flex items-center gap-2 text-sm mt-1">
+            <span className={`w-3 h-3 rounded-full ${isConnected ? 'bg-green-400' : 'bg-red-400 animate-pulse'}`}></span>
+            {isConnected ? 'Trực tuyến' : 'Đang kết nối...'}
+          </div>
+        </div>
+
+        {/* VOICE CONTROLS */}
+        <div className="flex items-center gap-2">
+          {!isInVoice ? (
+            <button onClick={joinVoice} className="bg-green-500 hover:bg-green-600 px-4 py-2 rounded-lg font-semibold text-sm">
+              🎙️ Tham gia Voice
+            </button>
+          ) : (
+            <>
+              <button onClick={toggleMute} className={`px-4 py-2 rounded-lg font-semibold text-sm ${isMuted ? 'bg-gray-500' : 'bg-yellow-500'}`}>
+                {isMuted ? '🔇 Unmute' : '🎙️ Mute'}
+              </button>
+              <button onClick={leaveVoice} className="bg-red-500 hover:bg-red-600 px-4 py-2 rounded-lg font-semibold text-sm">
+                Rời Voice
+              </button>
+            </>
+          )}
         </div>
       </div>
+
+      {/* RENDER REMOTE AUDIO STREAMS */}
+      {Array.from(remoteStreams.values()).map((stream, idx) => (
+        <AudioPlayer key={idx} stream={stream} />
+      ))}
 
       {/* DANH SÁCH TIN NHẮN */}
       <div className="flex-1 p-4 overflow-y-auto bg-gray-50 flex flex-col gap-4">
