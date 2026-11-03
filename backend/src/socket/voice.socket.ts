@@ -1,4 +1,4 @@
-import { Server } from 'socket.io';
+import { Server, Namespace, Socket } from 'socket.io';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
 import { env } from '../config/env.js';
@@ -34,6 +34,12 @@ const muteSchema = z.object({
   roomId: z.string().min(1),
   muted: z.boolean(),
 });
+
+interface ForwardSignalData {
+  fromUserId: string;
+  sdp?: string;
+  candidate?: string;
+}
 
 export function registerVoiceNamespace(io: Server) {
   const voiceNs = io.of('/voice');
@@ -123,7 +129,7 @@ export function registerVoiceNamespace(io: Server) {
       if (!parse.success) return;
 
       const { roomId } = parse.data;
-      handleLeave(socket, userId, roomId, false);
+      handleLeave(socket, userId, roomId);
     });
 
     socket.on('voice:offer', (payload: unknown) => {
@@ -174,17 +180,16 @@ export function registerVoiceNamespace(io: Server) {
     socket.on('disconnect', () => {
       const roomId = socketRoomMap.get(socket.id);
       if (roomId && userId) {
-        handleLeave(socket, userId, roomId, true);
+        handleLeave(socket, userId, roomId);
       }
       socketRoomMap.delete(socket.id);
     });
   });
 
   function handleLeave(
-    socket: any,
+    socket: Socket,
     userId: string,
-    roomId: string,
-    isDisconnect = false
+    roomId: string
   ) {
     const roomMembers = voiceRooms.get(roomId);
     if (!roomMembers) return;
@@ -203,11 +208,11 @@ export function registerVoiceNamespace(io: Server) {
 }
 
 function forwardSignal(
-  voiceNs: any,
+  voiceNs: Namespace,
   roomId: string,
   toUserId: string,
   event: string,
-  data: any
+  data: ForwardSignalData
 ) {
   const roomMembers = voiceRooms.get(roomId);
   if (!roomMembers?.has(toUserId)) return;
