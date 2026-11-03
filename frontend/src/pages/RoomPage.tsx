@@ -7,6 +7,7 @@ import { connectSocket, getSocket } from '../lib/socket'; // Import getSocket
 import { useWebRTC } from '../hooks/useWebRTC';
 import AudioPlayer from '../components/AudioPlayer';
 import StudyTimer from '../components/StudyTimer';
+import VoicePanel from '../components/VoicePanel';
 
 interface Message {
   id: string;
@@ -27,8 +28,8 @@ const RoomPage = () => {
   // Lấy Socket Instance
   const socket = getSocket() || connectSocket();
 
-  // Gọi Hook WebRTC
-  const { isInVoice, isMuted, remoteStreams, joinVoice, leaveVoice, toggleMute } = useWebRTC(socket, roomId);
+  // Gọi Hook WebRTC (chỉ lấy remoteStreams để render AudioPlayer)
+  const { remoteStreams } = useWebRTC(socket, roomId);
 
   // 1. "Mồi" Axios bằng API /friends để tự động Refresh Token
   const { data: friendsData, isLoading: isLoadingUser } = useQuery({
@@ -133,24 +134,6 @@ const RoomPage = () => {
             {isConnected ? 'Trực tuyến' : 'Đang kết nối...'}
           </div>
         </div>
-
-        {/* VOICE CONTROLS */}
-        <div className="flex items-center gap-2">
-          {!isInVoice ? (
-            <button onClick={joinVoice} className="bg-green-500 hover:bg-green-600 px-4 py-2 rounded-lg font-semibold text-sm">
-              🎙️ Tham gia Voice
-            </button>
-          ) : (
-            <>
-              <button onClick={toggleMute} className={`px-4 py-2 rounded-lg font-semibold text-sm ${isMuted ? 'bg-gray-500' : 'bg-yellow-500'}`}>
-                {isMuted ? '🔇 Unmute' : '🎙️ Mute'}
-              </button>
-              <button onClick={leaveVoice} className="bg-red-500 hover:bg-red-600 px-4 py-2 rounded-lg font-semibold text-sm">
-                Rời Voice
-              </button>
-            </>
-          )}
-        </div>
       </div>
 
       {/* CONTENT AREA - two columns: chat + study timer */}
@@ -207,10 +190,11 @@ const RoomPage = () => {
           </form>
         </div>
 
-        {/* SIDEBAR: Study Timer */}
+        {/* SIDEBAR: Study Timer + Voice Panel */}
         {roomId && (
           <div className="w-72 border-l bg-gray-50 flex flex-col">
             <StudyTimer roomId={roomId} />
+            <VoicePanel roomId={roomId} />
           </div>
         )}
       </div>

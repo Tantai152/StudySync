@@ -3,6 +3,7 @@ import { Server } from 'socket.io';
 import { createApp } from './app.js';
 import { env } from './config/env.js';
 import { setupSocket } from './sockets/socket.js';
+import { registerVoiceNamespace } from './socket/voice.socket.js';
 
 const app = createApp();
 
@@ -19,6 +20,9 @@ const io = new Server(server, {
 
 // Kích hoạt Socket logic
 setupSocket(io);
+
+// Kích hoạt Voice namespace (/voice)
+registerVoiceNamespace(io);
 
 // Chạy server
 server.listen(env.PORT, () => {
