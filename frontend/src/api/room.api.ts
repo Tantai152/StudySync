@@ -80,3 +80,64 @@ export const getMessagesApi = async (roomId: string) => {
   const response = await api.get(`/rooms/${roomId}/messages`);
   return response.data.data; // Trả về mảng tin nhắn
 };
+
+// Study Session types
+export interface StudySessionDTO {
+  id: string;
+  userId: string;
+  roomId: string;
+  goal: string | null;
+  status: 'ACTIVE' | 'PAUSED' | 'COMPLETED';
+  startedAt: string;
+  endedAt: string | null;
+  lastResumedAt: string | null;
+  duration: number;
+}
+
+// Lấy phiên học hiện tại của user trong phòng
+export const getCurrentSessionApi = async (roomId: string): Promise<StudySessionDTO | null> => {
+  const response = await api.get(`/rooms/${roomId}/sessions/current`);
+  return response.data.data;
+};
+
+// Bắt đầu phiên học mới
+export const startSessionApi = async (
+  roomId: string,
+  goal?: string
+): Promise<StudySessionDTO> => {
+  const response = await api.post(`/rooms/${roomId}/sessions/start`, { goal });
+  return response.data.data;
+};
+
+// Tạm dừng phiên học
+export const pauseSessionApi = async (
+  roomId: string,
+  sessionId: string
+): Promise<StudySessionDTO> => {
+  const response = await api.patch(
+    `/rooms/${roomId}/sessions/${sessionId}/pause`
+  );
+  return response.data.data;
+};
+
+// Khôi phục phiên học
+export const resumeSessionApi = async (
+  roomId: string,
+  sessionId: string
+): Promise<StudySessionDTO> => {
+  const response = await api.patch(
+    `/rooms/${roomId}/sessions/${sessionId}/resume`
+  );
+  return response.data.data;
+};
+
+// Kết thúc phiên học
+export const finishSessionApi = async (
+  roomId: string,
+  sessionId: string
+): Promise<StudySessionDTO> => {
+  const response = await api.patch(
+    `/rooms/${roomId}/sessions/${sessionId}/finish`
+  );
+  return response.data.data;
+};

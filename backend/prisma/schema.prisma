@@ -27,6 +27,7 @@ model User {
   roomsOwned    Room[]       @relation("RoomOwner")
   roomMembers   RoomMember[]
   messages      Message[]    // Tin nhắn của user trong các phòng
+  sessions      StudySession[]
 
   @@map("users")
 }
@@ -89,6 +90,7 @@ model Room {
   members RoomMember[]
   invites Invite[]
   messages Message[] // Lịch sử chat trong phòng
+  sessions StudySession[]
 
   @@map("rooms")
 }
@@ -133,4 +135,29 @@ model Message {
 
   @@index([roomId, createdAt]) // Composite index cho cursor pagination
   @@map("messages")
+}
+
+enum StudySessionStatus {
+  ACTIVE
+  PAUSED
+  COMPLETED
+}
+
+model StudySession {
+  id            String              @id @default(cuid())
+  userId        String
+  roomId        String
+  goal          String?
+  status        StudySessionStatus   @default(ACTIVE)
+  startedAt     DateTime            @default(now())
+  endedAt       DateTime?
+  lastResumedAt DateTime?
+  duration      Int                 @default(0) // giây, cộng dồn server-side
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@index([userId, roomId, status])
+  @@index([roomId, status])
+  @@map("study_sessions")
 }

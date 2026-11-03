@@ -8,6 +8,7 @@ import {
 } from '../controllers/room.controller.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 import { messageRouter } from './message.route.js';
+import studySessionRouter from './studySession.route.js';
 
 export const roomRouter = Router();
 
@@ -23,3 +24,6 @@ roomRouter.delete('/:id/members/me', leaveRoom);            // DELETE /api/v1/ro
 
 // Tin nhắn (mount vào roomRouter)
 roomRouter.use('/:roomId', messageRouter);                  // GET/POST /api/v1/rooms/:roomId/messages
+
+// Study session (mount vào roomRouter)
+roomRouter.use('/:roomId/sessions', studySessionRouter);    // GET/POST/PATCH /api/v1/rooms/:roomId/sessions/*

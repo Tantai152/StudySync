@@ -6,6 +6,7 @@ import api, { getAccessToken } from '../lib/axios';
 import { connectSocket, getSocket } from '../lib/socket'; // Import getSocket
 import { useWebRTC } from '../hooks/useWebRTC';
 import AudioPlayer from '../components/AudioPlayer';
+import StudyTimer from '../components/StudyTimer';
 
 interface Message {
   id: string;
@@ -122,7 +123,7 @@ const RoomPage = () => {
   }
 
   return (
-    <div className="flex flex-col h-[85vh] max-w-4xl mx-auto my-6 bg-white border rounded-xl shadow-lg overflow-hidden">
+    <div className="flex flex-col h-[85vh] max-w-6xl mx-auto my-6 bg-white border rounded-xl shadow-lg overflow-hidden">
       {/* HEADER */}
       <div className="bg-blue-600 text-white p-4 flex justify-between items-center shadow-md z-10">
         <div>
@@ -152,54 +153,67 @@ const RoomPage = () => {
         </div>
       </div>
 
-      {/* RENDER REMOTE AUDIO STREAMS */}
-      {Array.from(remoteStreams.values()).map((stream, idx) => (
-        <AudioPlayer key={idx} stream={stream} />
-      ))}
+      {/* CONTENT AREA - two columns: chat + study timer */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* MAIN: remote audio + messages + input */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* RENDER REMOTE AUDIO STREAMS */}
+          {Array.from(remoteStreams.values()).map((stream, idx) => (
+            <AudioPlayer key={idx} stream={stream} />
+          ))}
 
-      {/* DANH SÁCH TIN NHẮN */}
-      <div className="flex-1 p-4 overflow-y-auto bg-gray-50 flex flex-col gap-4">
-        {messages.length === 0 && (
-          <p className="text-center text-gray-500 mt-10">Chưa có tin nhắn nào. Hãy bắt đầu trò chuyện!</p>
+          {/* DANH SÁCH TIN NHẮN */}
+          <div className="flex-1 p-4 overflow-y-auto bg-gray-50 flex flex-col gap-4">
+            {messages.length === 0 && (
+              <p className="text-center text-gray-500 mt-10">Chưa có tin nhắn nào. Hãy bắt đầu trò chuyện!</p>
+            )}
+
+            {messages.map((msg) => {
+              const isMe = msg.senderId === currentUserId;
+              return (
+                <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-[70%] p-3 rounded-2xl shadow-sm ${
+                    isMe
+                      ? 'bg-blue-500 text-white rounded-br-none'
+                      : 'bg-white text-gray-800 border rounded-bl-none'
+                  }`}>
+                    <p className="break-words">{msg.content}</p>
+                    <span className={`text-[10px] block mt-1 ${isMe ? 'text-blue-100 text-right' : 'text-gray-400 text-left'}`}>
+                      {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+            <div ref={messagesEndRef} />
+          </div>
+
+          {/* KHUNG NHẬP TIN NHẮN */}
+          <form onSubmit={handleSendMessage} className="p-3 bg-white border-t flex gap-2">
+            <input
+              type="text"
+              value={inputMsg}
+              onChange={(e) => setInputMsg(e.target.value)}
+              placeholder="Nhập tin nhắn..."
+              className="flex-1 border p-3 rounded-lg focus:outline-none focus:border-blue-500 bg-gray-50"
+            />
+            <button
+              type="submit"
+              disabled={!isConnected || !inputMsg.trim()}
+              className="bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 disabled:bg-gray-400 transition-colors"
+            >
+              Gửi
+            </button>
+          </form>
+        </div>
+
+        {/* SIDEBAR: Study Timer */}
+        {roomId && (
+          <div className="w-72 border-l bg-gray-50 flex flex-col">
+            <StudyTimer roomId={roomId} />
+          </div>
         )}
-        
-        {messages.map((msg) => {
-          const isMe = msg.senderId === currentUserId;
-          return (
-            <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[70%] p-3 rounded-2xl shadow-sm ${
-                isMe 
-                  ? 'bg-blue-500 text-white rounded-br-none' 
-                  : 'bg-white text-gray-800 border rounded-bl-none'
-              }`}>
-                <p className="break-words">{msg.content}</p>
-                <span className={`text-[10px] block mt-1 ${isMe ? 'text-blue-100 text-right' : 'text-gray-400 text-left'}`}>
-                  {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </span>
-              </div>
-            </div>
-          );
-        })}
-        <div ref={messagesEndRef} />
       </div>
-
-      {/* KHUNG NHẬP TIN NHẮN */}
-      <form onSubmit={handleSendMessage} className="p-3 bg-white border-t flex gap-2">
-        <input
-          type="text"
-          value={inputMsg}
-          onChange={(e) => setInputMsg(e.target.value)}
-          placeholder="Nhập tin nhắn..."
-          className="flex-1 border p-3 rounded-lg focus:outline-none focus:border-blue-500 bg-gray-50"
-        />
-        <button
-          type="submit"
-          disabled={!isConnected || !inputMsg.trim()}
-          className="bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 disabled:bg-gray-400 transition-colors"
-        >
-          Gửi
-        </button>
-      </form>
     </div>
   );
 };
