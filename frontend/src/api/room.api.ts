@@ -74,3 +74,9 @@ export const kickMemberApi = async (roomId: string, userId: string): Promise<voi
 export const leaveRoomApi = async (roomId: string): Promise<void> => {
   await api.delete(`/rooms/${roomId}/members/me`);
 };
+
+// Lấy lịch sử tin nhắn của phòng
+export const getMessagesApi = async (roomId: string) => {
+  const response = await api.get(`/rooms/${roomId}/messages`);
+  return response.data.data; // Trả về mảng tin nhắn
+};

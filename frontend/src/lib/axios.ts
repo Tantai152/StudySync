@@ -8,6 +8,7 @@ const refreshClient = axios.create({
 
 // 2. Biến lưu access token trên RAM
 let accessToken: string | null = null;
+export const getAccessToken = () => accessToken;
 let isRefreshing = false;
 let failedQueue: Array<{ resolve: (value: unknown) => void; reject: (reason?: unknown) => void }> = [];
 
