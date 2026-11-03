@@ -42,7 +42,6 @@ const StudyTimer = ({ roomId }: StudyTimerProps) => {
   const {
     data: session,
     isLoading,
-    refetch,
   } = useQuery<StudySessionDTO | null>({
     queryKey: ['study-session', 'current', roomId],
     queryFn: () => getCurrentSessionApi(roomId),
@@ -157,7 +156,6 @@ const StudyTimer = ({ roomId }: StudyTimerProps) => {
   }
 
   const isActive = session.status === 'ACTIVE';
-  const isPaused = session.status === 'PAUSED';
 
   return (
     <div className="p-4 space-y-4">
