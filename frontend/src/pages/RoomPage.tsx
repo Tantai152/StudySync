@@ -3,25 +3,14 @@ import { useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getMessagesApi, generateInviteLinkApi } from '../api/room.api';
 import api, { getAccessToken } from '../lib/axios';
-import { connectSocket, getSocket } from '../lib/socket'; // Import getSocket
-import { useWebRTC } from '../hooks/useWebRTC';
+import { connectSocket, getSocket } from '../lib/socket';
 import { useToast } from '../components/ToastContext';
-import AudioPlayer from '../components/AudioPlayer';
 import StudyTimer from '../components/StudyTimer';
 import VoicePanel from '../components/VoicePanel';
 
+// Icon mời bạn bè
 const UserPlusIcon = ({ className = '' }: { className?: string }) => (
-  <svg
-    width="16"
-    height="16"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-  >
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
     <circle cx="8.5" cy="7" r="4" />
     <polyline points="16 11 12 17 8 11" />
@@ -43,12 +32,10 @@ const RoomPage = () => {
   const [currentUserId, setCurrentUserId] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
+  const { show: showToast } = useToast();
 
   // Lấy Socket Instance
   const socket = getSocket() || connectSocket();
-
-  // Gọi Hook WebRTC (chỉ lấy remoteStreams để render AudioPlayer)
-  const { remoteStreams } = useWebRTC(socket, roomId);
 
   // 1. "Mồi" Axios bằng API /friends để tự động Refresh Token
   const { data: friendsData, isLoading: isLoadingUser } = useQuery({
@@ -88,7 +75,7 @@ const RoomPage = () => {
     enabled: !!roomId && !!currentUserId, 
   });
 
-  // 4. Khởi tạo Socket
+  // 4. Khởi tạo Socket cho Chat
   useEffect(() => {
     if (!roomId || !currentUserId || !socket) return;
 
@@ -138,8 +125,7 @@ const RoomPage = () => {
     }
   };
 
-  // 7. Tạo link mời và copy vào clipboard
-  const { show: showToast } = useToast();
+  // 7. Tạo link mời
   const handleCopyInvite = async () => {
     try {
       const { link } = await generateInviteLinkApi(roomId!);
@@ -174,16 +160,10 @@ const RoomPage = () => {
         </button>
       </div>
 
-      {/* CONTENT AREA - two columns: chat + study timer */}
+      {/* CONTENT AREA */}
       <div className="flex flex-1 overflow-hidden">
-        {/* MAIN: remote audio + messages + input */}
+        {/* MAIN: messages + input */}
         <div className="flex-1 flex flex-col overflow-hidden">
-          {/* RENDER REMOTE AUDIO STREAMS */}
-          {Array.from(remoteStreams.values()).map((stream, idx) => (
-            <AudioPlayer key={idx} stream={stream} />
-          ))}
-
-          {/* DANH SÁCH TIN NHẮN */}
           <div className="flex-1 p-4 overflow-y-auto bg-gray-50 flex flex-col gap-4">
             {messages.length === 0 && (
               <p className="text-center text-gray-500 mt-10">Chưa có tin nhắn nào. Hãy bắt đầu trò chuyện!</p>
@@ -194,9 +174,7 @@ const RoomPage = () => {
               return (
                 <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
                   <div className={`max-w-[70%] p-3 rounded-2xl shadow-sm ${
-                    isMe
-                      ? 'bg-blue-500 text-white rounded-br-none'
-                      : 'bg-white text-gray-800 border rounded-bl-none'
+                    isMe ? 'bg-blue-500 text-white rounded-br-none' : 'bg-white text-gray-800 border rounded-bl-none'
                   }`}>
                     <p className="break-words">{msg.content}</p>
                     <span className={`text-[10px] block mt-1 ${isMe ? 'text-blue-100 text-right' : 'text-gray-400 text-left'}`}>
@@ -209,7 +187,6 @@ const RoomPage = () => {
             <div ref={messagesEndRef} />
           </div>
 
-          {/* KHUNG NHẬP TIN NHẮN */}
           <form onSubmit={handleSendMessage} className="p-3 bg-white border-t flex gap-2">
             <input
               type="text"
@@ -228,10 +205,11 @@ const RoomPage = () => {
           </form>
         </div>
 
-        {/* SIDEBAR: Study Timer + Voice Panel */}
+        {/* SIDEBAR */}
         {roomId && (
           <div className="w-72 border-l bg-gray-50 flex flex-col">
-            <StudyTimer roomId={roomId} />
+            {/* ĐÃ THÊM prop socket={socket} VÀO DƯỚI ĐÂY */}
+            <StudyTimer roomId={roomId} socket={socket} />
             <VoicePanel roomId={roomId} />
           </div>
         )}
