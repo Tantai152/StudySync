@@ -1,13 +1,32 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { getMessagesApi } from '../api/room.api';
+import { getMessagesApi, generateInviteLinkApi } from '../api/room.api';
 import api, { getAccessToken } from '../lib/axios';
 import { connectSocket, getSocket } from '../lib/socket'; // Import getSocket
 import { useWebRTC } from '../hooks/useWebRTC';
+import { useToast } from '../components/ToastContext';
 import AudioPlayer from '../components/AudioPlayer';
 import StudyTimer from '../components/StudyTimer';
 import VoicePanel from '../components/VoicePanel';
+
+const UserPlusIcon = ({ className = '' }: { className?: string }) => (
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+    <circle cx="8.5" cy="7" r="4" />
+    <polyline points="16 11 12 17 8 11" />
+  </svg>
+);
 
 interface Message {
   id: string;
@@ -119,6 +138,18 @@ const RoomPage = () => {
     }
   };
 
+  // 7. Tạo link mời và copy vào clipboard
+  const { show: showToast } = useToast();
+  const handleCopyInvite = async () => {
+    try {
+      const { link } = await generateInviteLinkApi(roomId!);
+      await navigator.clipboard.writeText(link);
+      showToast('Đã copy link mời!', 'success');
+    } catch (error) {
+      showToast('Không thể tạo link mời. Vui lòng thử lại.', 'error');
+    }
+  };
+
   if (isLoadingUser || isLoadingMessages) {
     return <div className="p-6 text-center text-gray-500">Đang tải dữ liệu phòng chat...</div>;
   }
@@ -134,6 +165,13 @@ const RoomPage = () => {
             {isConnected ? 'Trực tuyến' : 'Đang kết nối...'}
           </div>
         </div>
+        <button
+          onClick={handleCopyInvite}
+          className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          <UserPlusIcon />
+          <span>Mời bạn bè</span>
+        </button>
       </div>
 
       {/* CONTENT AREA - two columns: chat + study timer */}
