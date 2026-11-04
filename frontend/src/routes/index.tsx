@@ -9,6 +9,7 @@ import FriendsPage from '../pages/FriendsPage'; // <-- Import trang mới
 import ProtectedRoute from '../components/ProtectedRoute';
 import CreateRoomPage from '../pages/CreateRoomPage';
 import JoinRoomPage from '../pages/JoinRoomPage';
+import DashboardPage from '../pages/DashboardPage';
 
 export const router = createBrowserRouter([
   // Public routes
@@ -50,6 +51,10 @@ export const router = createBrowserRouter([
       {
         path: '/rooms/:roomId',
         element: <RoomPage />,
+      },
+      {
+        path: '/dashboard',
+        element: <DashboardPage />,
       },
     ],
   },

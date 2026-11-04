@@ -9,6 +9,7 @@
   import { friendRouter } from './routes/friend.route.js';
   import { roomRouter } from './routes/room.route.js';
   import { inviteRouter } from './routes/invite.route.js';
+  import { dashboardRouter } from './routes/dashboard.route.js';
 
   export function createApp() {
     const app = express();
@@ -25,6 +26,7 @@
     app.use('/api/v1/admin', adminRouter);
     app.use('/api/v1/rooms', roomRouter);
     app.use('/api/v1/rooms', inviteRouter);
+    app.use('/api/v1/dashboard', dashboardRouter);
 
     app.use((_req, res) => {
       res.status(404).json({
