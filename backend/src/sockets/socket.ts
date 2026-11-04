@@ -64,16 +64,14 @@ export const setupSocket = (io: Server) => {
     });
 
     // ==========================================
-    // WEBRTC VOICE SIGNALING (Phần mới thêm)
+    // WEBRTC VOICE SIGNALING
     // ==========================================
 
-    // 1. Tham gia kênh thoại
     socket.on('voice:join', (roomId: string) => {
       socket.to(roomId).emit('voice:user_joined', socket.id, socket.userId);
       console.log(`User ${socket.userId} joined voice in room: ${roomId}`);
     });
 
-    // 2. Chuyển tiếp Offer
     socket.on('voice:offer', (payload: { targetId: string; offer: unknown }) => {
       io.to(payload.targetId).emit('voice:offer', {
         fromId: socket.id,
@@ -81,7 +79,6 @@ export const setupSocket = (io: Server) => {
       });
     });
 
-    // 3. Chuyển tiếp Answer
     socket.on('voice:answer', (payload: { targetId: string; answer: unknown }) => {
       io.to(payload.targetId).emit('voice:answer', {
         fromId: socket.id,
@@ -89,7 +86,6 @@ export const setupSocket = (io: Server) => {
       });
     });
 
-    // 4. Chuyển tiếp ICE Candidates
     socket.on('voice:ice_candidate', (payload: { targetId: string; candidate: unknown }) => {
       io.to(payload.targetId).emit('voice:ice_candidate', {
         fromId: socket.id,
@@ -97,16 +93,22 @@ export const setupSocket = (io: Server) => {
       });
     });
 
-    // 5. Rời kênh thoại
     socket.on('voice:leave', (roomId: string) => {
       socket.to(roomId).emit('voice:user_left', socket.id);
       console.log(`User ${socket.userId} left voice in room: ${roomId}`);
     });
 
+    // ==========================================
+    // STUDY SESSION REALTIME (Đã được đưa vào đúng chỗ)
+    // ==========================================
+    socket.on('study:status_update', (data: { roomId: string; session: unknown }) => {
+      // Phát cho những người khác trong phòng biết (trừ mình)
+      socket.to(data.roomId).emit('study:user_status', data.session);
+    });
+
     // Xử lý ngắt kết nối (Tắt tab, mất mạng)
     socket.on('disconnect', () => {
       console.log(`🔌 User disconnected: ${socket.userId}`);
-      // Báo cho tất cả mọi người biết user này đã ngắt kết nối để dọn dẹp audio
       socket.broadcast.emit('voice:user_left', socket.id);
     });
   });
