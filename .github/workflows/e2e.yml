@@ -79,7 +79,7 @@ jobs:
         # The committed migrations stop at invites; message/study_session
         # tables were created with `db push` in development. Keep CI in sync
         # with the schema.prisma source of truth.
-        run: npx prisma db push --skip-generate
+        run: npx prisma db push
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
