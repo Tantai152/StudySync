@@ -52,6 +52,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } catch {
       // Ignore localStorage errors
     }
+    // Keep the axios in-memory token in sync so API calls work right after a page reload.
+    setAccessToken(accessTokenState);
   }, [accessTokenState]);
 
   const login = (userData: User, token: string) => {

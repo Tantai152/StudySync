@@ -11,6 +11,9 @@ const adapter = new PrismaMariaDb({
   ssl: {
     rejectUnauthorized: false, // Bắt buộc để kết nối Aiven Cloud không bị chặn SSL
   },
+  // Aiven TLS handshakes can exceed mariadb's 1s default, causing
+  // "pool failed to retrieve a connection from pool" on cold starts.
+  connectTimeout: 15000,
 });
 
 export const prisma = new PrismaClient({ adapter });
