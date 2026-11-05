@@ -28,6 +28,7 @@ model User {
   roomMembers   RoomMember[]
   messages      Message[]    // Tin nhắn của user trong các phòng
   sessions      StudySession[]
+  transcriptions Transcription[] // Các đoạn STT do user tạo trong phòng
 
   @@map("users")
 }
@@ -91,6 +92,8 @@ model Room {
   invites Invite[]
   messages Message[] // Lịch sử chat trong phòng
   sessions StudySession[]
+  summaries RoomSummary[] // Tóm tắt AI theo phòng (giai đoạn sau)
+  transcriptions Transcription[] // Các đoạn STT trong phòng
 
   @@map("rooms")
 }
@@ -160,4 +163,30 @@ model StudySession {
   @@index([userId, roomId, status])
   @@index([roomId, status])
   @@map("study_sessions")
+}
+
+model RoomSummary {
+  id        String   @id @default(cuid())
+  roomId    String   @map("room_id")
+  content   String   @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@index([roomId, createdAt])
+  @@map("room_summaries")
+}
+
+model Transcription {
+  id        String   @id @default(cuid())
+  roomId    String   @map("room_id")
+  userId    String   @map("user_id")
+  text      String   @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([roomId, createdAt])
+  @@map("transcriptions")
 }

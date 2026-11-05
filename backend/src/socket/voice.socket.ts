@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import { z } from 'zod';
 import { env } from '../config/env.js';
 import { prisma } from '../config/prisma.js';
+import { markVoiceOffline, markVoiceOnline } from './roomPresence.js';
 
 const MAX_PER_ROOM = 4;
 
@@ -108,6 +109,7 @@ export function registerVoiceNamespace(io: Server) {
       roomMembers.set(userId, { socketId: socket.id, muted: false });
       socketRoomMap.set(socket.id, roomId);
       socket.join(`voice:${roomId}`);
+      markVoiceOnline(roomId, socket.id);
 
       // Notify peers
       socket.to(`voice:${roomId}`).emit('voice:peer-joined', {
@@ -192,9 +194,13 @@ export function registerVoiceNamespace(io: Server) {
     roomId: string
   ) {
     const roomMembers = voiceRooms.get(roomId);
-    if (!roomMembers) return;
+    if (!roomMembers) {
+      markVoiceOffline(roomId, socket.id);
+      return;
+    }
 
     roomMembers.delete(userId);
+    markVoiceOffline(roomId, socket.id);
     socket.leave(`voice:${roomId}`);
     socketRoomMap.delete(socket.id);
 

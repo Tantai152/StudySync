@@ -1,7 +1,11 @@
-import { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { getMessagesApi, generateInviteLinkApi } from '../api/room.api';
+import {
+  getMessagesApi,
+  generateInviteLinkApi,
+  getRoomSummaryApi,
+} from '../api/room.api';
 import api, { getAccessToken } from '../lib/axios';
 import { connectSocket, getSocket } from '../lib/socket';
 import { useToast } from '../components/ToastContext';
@@ -33,6 +37,30 @@ const RoomPage = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
   const { show: showToast } = useToast();
+
+  // Modal tóm tắt
+  const [showSummaryModal, setShowSummaryModal] = useState(false);
+  const [summaryData, setSummaryData] = useState<{
+    id: string;
+    roomId: string;
+    content: string;
+    createdAt: string;
+  } | null>(null);
+  const [isLoadingSummary, setIsLoadingSummary] = useState(false);
+
+  const loadRoomSummary = async () => {
+    if (!roomId) return;
+    setIsLoadingSummary(true);
+    try {
+      const summary = await getRoomSummaryApi(roomId);
+      setSummaryData(summary);
+    } catch {
+      setSummaryData(null);
+      showToast('Không thể tải tóm tắt phòng', 'error');
+    } finally {
+      setIsLoadingSummary(false);
+    }
+  };
 
   // Lấy Socket Instance
   const socket = getSocket() || connectSocket();
@@ -141,7 +169,8 @@ const RoomPage = () => {
   }
 
   return (
-    <div className="flex flex-col h-[85vh] max-w-6xl mx-auto my-6 bg-white border rounded-xl shadow-lg overflow-hidden">
+    <React.Fragment>
+      <div className="flex flex-col h-[85vh] max-w-6xl mx-auto my-6 bg-white border rounded-xl shadow-lg overflow-hidden">
       {/* HEADER */}
       <div className="bg-blue-600 text-white p-4 flex justify-between items-center shadow-md z-10">
         <div>
@@ -211,10 +240,95 @@ const RoomPage = () => {
             {/* ĐÃ THÊM prop socket={socket} VÀO DƯỚI ĐÂY */}
             <StudyTimer roomId={roomId} socket={socket} />
             <VoicePanel roomId={roomId} />
+
+            {/* Nút xem tóm tắt buổi trước */}
+            <button
+              onClick={() => {
+                setShowSummaryModal(true);
+                loadRoomSummary();
+              }}
+              className="mt-4 px-4 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors w-full"
+              disabled={isLoadingSummary}
+            >
+              {isLoadingSummary ? 'Đang tải...' : 'Xem tóm tắt buổi trước'}
+            </button>
           </div>
         )}
       </div>
     </div>
+
+    {/* Modal xem tóm tắt */}
+    {showSummaryModal && (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center"
+        onClick={() => setShowSummaryModal(false)}
+      >
+        <div
+          className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm"
+          onClick={(e) => e.stopPropagation()}
+        />
+        <div
+          className="relative bg-white rounded-xl shadow-2xl p-6 max-w-2xl w-full mx-4 max-h-[80vh] flex flex-col"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            onClick={() => setShowSummaryModal(false)}
+            className="absolute top-3 right-3 text-gray-400 hover:text-gray-600"
+            aria-label="Đóng modal"
+          >
+            ✕
+          </button>
+
+          <h2 className="text-xl font-bold text-gray-900 mb-4">
+            Tóm tắt buổi học
+          </h2>
+
+          {isLoadingSummary ? (
+            <div className="p-10 text-center text-gray-500">Đang tải...</div>
+          ) : summaryData ? (
+            <div className="space-y-3">
+              <div className="flex justify-between items-start mb-4">
+                <span className="text-sm font-medium text-gray-600">
+                  Phòng: {summaryData.roomId}
+                </span>
+                <span className="text-sm text-gray-500">
+                  {new Date(summaryData.createdAt).toLocaleString('vi-VN', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </span>
+              </div>
+              <div className="prose prose-sm max-w-none text-gray-700 leading-relaxed whitespace-pre-wrap">
+                {summaryData.content}
+              </div>
+            </div>
+          ) : (
+            <div className="p-10 text-center text-gray-500">
+              <div className="text-2xl mb-2">📝</div>
+              <p className="font-medium text-gray-600">
+                Chưa có bản tóm tắt cho phòng này.
+              </p>
+              <p className="text-sm text-gray-500 mt-1">
+                Tóm tắt sẽ được sinh tự động sau khi buổi học kết thúc và phòng vắng người 2 phút.
+              </p>
+            </div>
+          )}
+
+          <div className="mt-6 flex justify-end">
+            <button
+              onClick={() => setShowSummaryModal(false)}
+              className="px-6 py-2.5 text-sm font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700 transition-colors"
+            >
+              Đóng
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </React.Fragment>
   );
 };
 
