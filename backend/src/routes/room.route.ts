@@ -7,6 +7,9 @@ import {
   leaveRoom,
 } from '../controllers/room.controller.js';
 import { authenticate } from '../middleware/auth.middleware.js';
+import { uploadAudio } from '../middleware/upload.middleware.js';
+import { transcribeRoomAudio } from '../controllers/transcription.controller.js';
+import { getRoomSummary } from '../controllers/summary.controller.js';
 import { messageRouter } from './message.route.js';
 import studySessionRouter from './studySession.route.js';
 
@@ -27,3 +30,9 @@ roomRouter.use('/:roomId', messageRouter);                  // GET/POST /api/v1/
 
 // Study session (mount vào roomRouter)
 roomRouter.use('/:roomId/sessions', studySessionRouter);    // GET/POST/PATCH /api/v1/rooms/:roomId/sessions/*
+
+// Speech-to-text: nhận 1 đoạn audio và lưu text vào bảng Transcription
+roomRouter.post('/:roomId/transcribe', uploadAudio, transcribeRoomAudio); // POST /api/v1/rooms/:roomId/transcribe
+
+// Tóm tắt AI mới nhất của phòng (sinh ra khi phòng vắng 2 phút)
+roomRouter.get('/:roomId/summary', getRoomSummary); // GET /api/v1/rooms/:roomId/summary

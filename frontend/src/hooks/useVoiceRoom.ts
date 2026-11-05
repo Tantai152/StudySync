@@ -1,8 +1,26 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { io, type Socket } from 'socket.io-client';
-import { getAccessToken } from '../lib/axios';
+import api, { getAccessToken } from '../lib/axios';
 
 const ICE_SERVERS = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+
+// Mỗi đoạn thu âm dài 15 giây rồi gửi lên backend để chuyển thành text.
+const RECORDING_SEGMENT_MS = 15_000;
+// Bỏ qua blob quá nhỏ (im lặng/nhiễu) để tránh gọi Groq vô ích.
+const MIN_AUDIO_BLOB_BYTES = 1_500;
+
+const RECORDING_MIME_TYPES = [
+  'audio/webm;codecs=opus',
+  'audio/webm',
+  'audio/ogg;codecs=opus',
+];
+
+const pickRecordingMimeType = (): string | undefined => {
+  if (typeof MediaRecorder === 'undefined') return undefined;
+  return RECORDING_MIME_TYPES.find((type) =>
+    MediaRecorder.isTypeSupported(type)
+  );
+};
 
 type VoiceState = 'idle' | 'requesting-mic' | 'connecting' | 'connected' | 'error';
 
@@ -35,7 +53,16 @@ export function useVoiceRoom({ roomId }: { roomId: string }): UseVoiceRoomReturn
   const stateRef = useRef<VoiceState>('idle');
   const isUserInitiatedLeave = useRef(false);
 
+  // Speech-to-text (MediaRecorder) state
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const segmentTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isRecordingRef = useRef(false);
+  const isMutedRef = useRef(false);
+  const discardCurrentSegmentRef = useRef(false);
+  const startRecordingRef = useRef<() => void>(() => {});
+
   stateRef.current = state;
+  isMutedRef.current = isMuted;
 
   const createPeerConnection = useCallback(
     (peerUserId: string): RTCPeerConnection => {
@@ -105,6 +132,132 @@ export function useVoiceRoom({ roomId }: { roomId: string }): UseVoiceRoomReturn
     setPeers((prev) => prev.filter((p) => p.userId !== peerUserId));
   }, []);
 
+  /**
+   * Gửi 1 đoạn audio lên backend để Groq Whisper chuyển thành text.
+   * Lỗi STT được nuốt (chỉ warn) để không làm gián đoạn cuộc gọi thoại.
+   */
+  const sendAudioChunk = useCallback(
+    async (blob: Blob) => {
+      if (blob.size < MIN_AUDIO_BLOB_BYTES) return;
+
+      try {
+        const formData = new FormData();
+        formData.append('audio', blob, `chunk-${Date.now()}.webm`);
+
+        await api.post(`/rooms/${roomId}/transcribe`, formData, {
+          // `false` xoá Content-Type mặc định (application/json) để trình duyệt
+          // tự set multipart/form-data kèm boundary cho FormData.
+          headers: { 'Content-Type': false },
+        });
+      } catch (err) {
+        console.warn('[voice] Không gửi được đoạn audio để transcribe', err);
+      }
+    },
+    [roomId]
+  );
+
+  /**
+   * Bắt đầu thu âm thanh từ local stream.
+   * Mỗi 15 giây recorder dừng lại, blob hoàn chỉnh được gửi đi, rồi thu tiếp.
+   */
+  const startRecording = useCallback(() => {
+    const stream = localStreamRef.current;
+    if (
+      !stream ||
+      isRecordingRef.current ||
+      stateRef.current !== 'connected' ||
+      isMutedRef.current ||
+      typeof MediaRecorder === 'undefined'
+    ) {
+      return;
+    }
+
+    const mimeType = pickRecordingMimeType();
+    let recorder: MediaRecorder;
+
+    try {
+      recorder = new MediaRecorder(
+        stream,
+        mimeType ? { mimeType } : undefined
+      );
+    } catch (err) {
+      console.warn('[voice] Không thể khởi tạo MediaRecorder', err);
+      return;
+    }
+
+    const chunks: BlobPart[] = [];
+    isRecordingRef.current = true;
+    mediaRecorderRef.current = recorder;
+
+    recorder.ondataavailable = (event) => {
+      if (event.data.size > 0) chunks.push(event.data);
+    };
+
+    recorder.onstop = () => {
+      mediaRecorderRef.current = null;
+      if (segmentTimerRef.current) {
+        clearTimeout(segmentTimerRef.current);
+        segmentTimerRef.current = null;
+      }
+
+      const shouldSend =
+        isRecordingRef.current && !discardCurrentSegmentRef.current;
+      discardCurrentSegmentRef.current = false;
+
+      if (shouldSend && chunks.length > 0) {
+        const blob = new Blob(chunks, {
+          type: recorder.mimeType || 'audio/webm',
+        });
+        void sendAudioChunk(blob);
+      }
+
+      // Thu tiếp đoạn kế tiếp nếu phiên voice vẫn đang hoạt động.
+      if (isRecordingRef.current) {
+        startRecordingRef.current();
+      }
+    };
+
+    recorder.start();
+
+    segmentTimerRef.current = setTimeout(() => {
+      if (recorder.state !== 'inactive') {
+        recorder.stop();
+      }
+    }, RECORDING_SEGMENT_MS);
+  }, [sendAudioChunk]);
+
+  startRecordingRef.current = startRecording;
+
+  /**
+   * Dừng thu âm (khi mute, leave hoặc mất kết nối).
+   * Đoạn audio dở dang bị bỏ, không gửi lên server.
+   */
+  const stopRecording = useCallback(() => {
+    isRecordingRef.current = false;
+
+    if (segmentTimerRef.current) {
+      clearTimeout(segmentTimerRef.current);
+      segmentTimerRef.current = null;
+    }
+
+    const recorder = mediaRecorderRef.current;
+    if (recorder && recorder.state !== 'inactive') {
+      discardCurrentSegmentRef.current = true;
+      recorder.stop();
+    } else {
+      mediaRecorderRef.current = null;
+    }
+  }, []);
+
+  // Tự động thu âm khi đã vào phòng voice, dừng khi rời/mất kết nối.
+  useEffect(() => {
+    if (state === 'connected') {
+      startRecording();
+    } else {
+      stopRecording();
+    }
+  }, [state, startRecording, stopRecording]);
+
   const toggleMute = useCallback(() => {
     if (stateRef.current !== 'connected') return;
     const stream = localStreamRef.current;
@@ -114,8 +267,16 @@ export function useVoiceRoom({ roomId }: { roomId: string }): UseVoiceRoomReturn
     const newMuted = !audioTrack.enabled;
     audioTrack.enabled = !newMuted;
     setIsMuted(newMuted);
+
+    // Tắt mic -> ngừng thu âm; bật lại -> thu tiếp.
+    if (newMuted) {
+      stopRecording();
+    } else {
+      startRecording();
+    }
+
     socketRef.current?.emit('voice:mute', { roomId, muted: newMuted });
-  }, [roomId]);
+  }, [roomId, startRecording, stopRecording]);
 
   const join = useCallback(async () => {
     console.log('[voice-debug] join called');
@@ -324,6 +485,9 @@ export function useVoiceRoom({ roomId }: { roomId: string }): UseVoiceRoomReturn
     console.log('[voice-debug] leaveVoice called');
     isUserInitiatedLeave.current = true;
 
+    // Dừng thu âm STT trước khi tắt micro
+    stopRecording();
+
     // Stop local tracks
     localStreamRef.current?.getTracks().forEach((track) => track.stop());
     localStreamRef.current = null;
@@ -344,10 +508,11 @@ export function useVoiceRoom({ roomId }: { roomId: string }): UseVoiceRoomReturn
     setState('idle');
     setIsMuted(false);
     isUserInitiatedLeave.current = false;
-  }, [roomId]);
+  }, [roomId, stopRecording]);
 
   // Cleanup on tab close / beforeunload — chỉ dọn dẹp local, không emit leave
   const handleUnload = useCallback(() => {
+    stopRecording();
     if (stateRef.current === 'connected' || stateRef.current === 'connecting') {
       localStreamRef.current?.getTracks().forEach((track) => track.stop());
       localStreamRef.current = null;
@@ -358,7 +523,7 @@ export function useVoiceRoom({ roomId }: { roomId: string }): UseVoiceRoomReturn
         socketRef.current = null;
       }
     }
-  }, []);
+  }, [stopRecording]);
 
   useEffect(() => {
     window.addEventListener('beforeunload', handleUnload);
@@ -374,6 +539,7 @@ export function useVoiceRoom({ roomId }: { roomId: string }): UseVoiceRoomReturn
     const localStream = localStreamRef.current;
 
     return () => {
+      stopRecording();
       if (stateRef.current === 'connected' || stateRef.current === 'connecting') {
         localStream?.getTracks().forEach((track) => track.stop());
         peerConnections.forEach((pc) => pc.close());
@@ -386,7 +552,7 @@ export function useVoiceRoom({ roomId }: { roomId: string }): UseVoiceRoomReturn
         setIsMuted(false);
       }
     };
-  }, []);
+  }, [stopRecording]);
 
   return { state, peers, error, isMuted, join, leaveVoice, toggleMute };
 }

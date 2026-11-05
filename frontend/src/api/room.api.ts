@@ -141,3 +141,19 @@ export const finishSessionApi = async (
   );
   return response.data.data;
 };
+
+// Tóm tắt phòng học
+export interface RoomSummaryResponse {
+  id: string;
+  roomId: string;
+  content: string;
+  createdAt: string;
+}
+
+// Lấy bản tóm tắt mới nhất của phòng
+export const getRoomSummaryApi = async (
+  roomId: string
+): Promise<RoomSummaryResponse | null> => {
+  const response = await api.get(`/rooms/${roomId}/summary`);
+  return response.data.data;
+};

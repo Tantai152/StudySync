@@ -3,10 +3,12 @@ import jwt from 'jsonwebtoken';
 import { env } from '../config/env.js';
 import { prisma } from '../config/prisma.js';
 import * as messageService from '../services/message.service.js';
+import { markChatOffline, markChatOnline } from '../socket/roomPresence.js';
 
 // Mở rộng kiểu dữ liệu của Socket để lưu userId
 interface AuthSocket extends Socket {
   userId?: string;
+  chatRooms?: Set<string>;
 }
 
 export const setupSocket = (io: Server) => {
@@ -46,6 +48,9 @@ export const setupSocket = (io: Server) => {
         }
 
         socket.join(roomId);
+        if (!socket.chatRooms) socket.chatRooms = new Set<string>();
+        socket.chatRooms.add(roomId);
+        markChatOnline(roomId, socket.id);
         console.log(`User ${socket.userId} joined room: ${roomId}`);
       } catch {
         socket.emit('error', { message: 'Lỗi khi tham gia phòng' });
@@ -109,6 +114,8 @@ export const setupSocket = (io: Server) => {
     // Xử lý ngắt kết nối (Tắt tab, mất mạng)
     socket.on('disconnect', () => {
       console.log(`🔌 User disconnected: ${socket.userId}`);
+      socket.chatRooms?.forEach((roomId) => markChatOffline(roomId, socket.id));
+      socket.chatRooms?.clear();
       socket.broadcast.emit('voice:user_left', socket.id);
     });
   });
