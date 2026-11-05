@@ -7,7 +7,16 @@ const refreshClient = axios.create({
 });
 
 // 2. Biến lưu access token trên RAM
-let accessToken: string | null = null;
+//    Khôi phục từ localStorage ngay khi module nạp để request đầu tiên sau F5
+//    vẫn có token (React effect chạy sau khi con render, nên không đủ sớm).
+const TOKEN_STORAGE_KEY = 'studysync_token';
+let accessToken: string | null = (() => {
+  try {
+    return localStorage.getItem(TOKEN_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+})();
 export const getAccessToken = () => accessToken;
 let isRefreshing = false;
 let failedQueue: Array<{ resolve: (value: unknown) => void; reject: (reason?: unknown) => void }> = [];
