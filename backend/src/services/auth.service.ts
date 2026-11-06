@@ -14,6 +14,7 @@ export interface UserResponse {
   id: string;
   email: string;
   name: string;
+  avatarUrl: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -65,6 +66,7 @@ export async function registerUser(input: CreateUserInput): Promise<UserResponse
     id: user.id,
     email: user.email,
     name: user.name,
+    avatarUrl: user.avatarUrl,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
   };
@@ -101,6 +103,7 @@ export async function loginUser(input: LoginInput): Promise<LoginResponse> {
       id: user.id,
       email: user.email,
       name: user.name,
+      avatarUrl: user.avatarUrl,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     },

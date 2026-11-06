@@ -10,6 +10,7 @@
   import { roomRouter } from './routes/room.route.js';
   import { inviteRouter } from './routes/invite.route.js';
   import { dashboardRouter } from './routes/dashboard.route.js';
+  import { userRouter } from './routes/user.route.js';
 
   export function createApp() {
     const app = express();
@@ -22,6 +23,7 @@
 
     app.use('/api/v1/health', healthRouter);
     app.use('/api/v1/auth', authRouter);
+    app.use('/api/v1', userRouter);
     app.use('/api/v1', friendRouter); 
     app.use('/api/v1/admin', adminRouter);
     app.use('/api/v1/rooms', roomRouter);

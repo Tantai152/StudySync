@@ -10,6 +10,7 @@ import ProtectedRoute from '../components/ProtectedRoute';
 import CreateRoomPage from '../pages/CreateRoomPage';
 import JoinRoomPage from '../pages/JoinRoomPage';
 import DashboardPage from '../pages/DashboardPage';
+import ProfilePage from '../pages/ProfilePage';
 
 export const router = createBrowserRouter([
   // Public routes
@@ -55,6 +56,10 @@ export const router = createBrowserRouter([
       {
         path: '/dashboard',
         element: <DashboardPage />,
+      },
+      {
+        path: '/profile',
+        element: <ProfilePage />,
       },
     ],
   },

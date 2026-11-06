@@ -15,6 +15,7 @@ model User {
   email        String   @unique @map("email")
   passwordHash String   @map("password_hash")
   name         String   @map("name")
+  avatarUrl    String?  @map("avatar_url")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 

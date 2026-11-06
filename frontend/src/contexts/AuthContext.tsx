@@ -1,7 +1,8 @@
 /* eslint-disable react-refresh/only-export-components */
-import React, { createContext, useState, useEffect, useMemo, type ReactNode } from 'react';
-import type { User, AuthContextType } from '../types/auth.types';
+import React, { createContext, useState, useEffect, useMemo, useCallback, type ReactNode } from 'react';
+import type { User, AuthContextType, UpdateProfileInput } from '../types/auth.types';
 import { setAccessToken } from '../lib/axios';
+import { updateProfileApi } from '../api/user.api';
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -70,6 +71,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     localStorage.removeItem(TOKEN_STORAGE_KEY);
   };
 
+  const updateProfile = useCallback(async (data: UpdateProfileInput) => {
+    const updatedUser = await updateProfileApi(data);
+    setUser(updatedUser);
+  }, []);
+
   const isAuthenticated = Boolean(user && accessTokenState);
 
   const value = useMemo(
@@ -79,8 +85,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       isAuthenticated,
       login,
       logout,
+      updateProfile,
     }),
-    [user, accessTokenState, isAuthenticated]
+    [user, accessTokenState, isAuthenticated, updateProfile]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
