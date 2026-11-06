@@ -40,8 +40,10 @@ test.describe('Auth flow', () => {
     // 7. Verify redirect to home after login
     await expect(page).toHaveURL(/.*\/($|\/dashboard)/, { timeout: 10000 });
 
-    // 8. Logout via Navbar
-    await page.locator('button:has-text("Đăng xuất")').click();
+    // 8. Logout via Navbar (nút "Đăng xuất" hiện trong Dropdown Menu của Avatar)
+    await page.locator('button[aria-label="Mở menu tài khoản"]').click(); // Mở dropdown
+    await page.locator('[role="menu"]').waitFor({ state: 'visible' }); // Đợi dropdown hiện ra
+    await page.locator('[role="menu"] button:has-text("Đăng xuất")').click(); // Click Đăng xuất trong dropdown
 
     // 9. Verify redirect to /login after logout
     await expect(page).toHaveURL(/.*\/login/, { timeout: 10000 });
