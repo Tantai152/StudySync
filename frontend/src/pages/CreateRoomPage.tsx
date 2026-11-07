@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { createRoomApi, CreateRoomData } from '../api/room.api';
+import { BackButton } from '../components/BackButton';
 import { AxiosError } from 'axios';
 
 interface ErrorResponse {
@@ -40,6 +41,7 @@ const CreateRoomPage = () => {
 
   return (
     <div className="max-w-md mx-auto mt-10 p-6 bg-white rounded-lg shadow-md border">
+      <BackButton className="mb-4" />
       <h1 className="text-2xl font-bold mb-6 text-gray-800">Tạo Phòng Học Mới</h1>
 
       {errorMsg && (

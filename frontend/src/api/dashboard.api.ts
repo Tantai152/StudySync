@@ -17,6 +17,25 @@ export const getDashboardStatsApi = async (): Promise<DashboardStats> => {
   return res.data.data;
 };
 
+export interface HeatmapDay {
+  date: string;
+  /** Tổng số giây học trong ngày */
+  duration: number;
+  /** Mức đóng góp 0-4 */
+  level: number;
+}
+
+export interface StudyStats {
+  heatmap: HeatmapDay[];
+  currentStreak: number;
+  longestStreak: number;
+}
+
+export const getStudyStatsApi = async (): Promise<StudyStats> => {
+  const res = await api.get('/dashboard/study-stats');
+  return res.data.data;
+};
+
 /**
  * Bản tóm tắt của một phòng học.
  */

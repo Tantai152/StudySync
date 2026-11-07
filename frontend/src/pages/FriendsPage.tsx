@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getRequestsApi, respondRequestApi, getFriendsApi } from '../api/friend.api';
+import { BackButton } from '../components/BackButton';
 
 interface FriendUser {
   id: string;
@@ -43,6 +44,7 @@ const FriendsPage = () => {
 
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-8">
+      <BackButton />
       <h1 className="text-3xl font-bold text-gray-800">Bạn bè</h1>
 
       {/* Phần 1: Lời mời đang chờ */}

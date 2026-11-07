@@ -8,6 +8,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import { ToastProvider } from './components/ToastContext';
 import { ToastList } from './components/Toast';
 import './index.css';
+import 'react-activity-calendar/tooltips.css';
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>

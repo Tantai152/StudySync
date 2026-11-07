@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { searchUsersApi, sendFriendRequestApi } from '../api/friend.api';
+import { BackButton } from '../components/BackButton';
 import { AxiosError } from 'axios';
 
 interface User {
@@ -44,6 +45,7 @@ const SearchUsersPage = () => {
 
   return (
     <div className="max-w-2xl mx-auto p-6">
+      <BackButton className="mb-4" />
       <h1 className="text-2xl font-bold mb-4">Tìm kiếm bạn bè</h1>
       
       <input
