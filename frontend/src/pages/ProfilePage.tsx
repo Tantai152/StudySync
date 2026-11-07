@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { useForm } from 'react-hook-form';
 import { Navbar } from '../components/Navbar';
+import { BackButton } from '../components/BackButton';
 import { Avatar } from '../components/Avatar';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../components/ToastContext';
@@ -51,6 +52,7 @@ const ProfilePage = () => {
       <Navbar />
 
       <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <BackButton className="mb-4" />
         <h1 className="text-3xl font-bold text-gray-900 mb-8">Trang cá nhân</h1>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

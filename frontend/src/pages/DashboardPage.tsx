@@ -1,10 +1,21 @@
 import { useQuery } from '@tanstack/react-query';
-import { getDashboardStatsApi, getUserSummariesApi } from '../api/dashboard.api';
+import { ActivityCalendar, type Activity } from 'react-activity-calendar';
+import {
+  getDashboardStatsApi,
+  getStudyStatsApi,
+  getUserSummariesApi,
+} from '../api/dashboard.api';
+import { BackButton } from '../components/BackButton';
 
 const formatDuration = (totalSeconds: number) => {
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  return `${hours}h ${minutes}m`;
+  const safe = Math.max(0, Math.floor(totalSeconds));
+  const hours = Math.floor(safe / 3600);
+  const minutes = Math.floor((safe % 3600) / 60);
+  const seconds = safe % 60;
+
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  if (minutes > 0) return `${minutes}m ${seconds}s`;
+  return `${seconds}s`;
 };
 
 const formatDate = (dateString: string) => {
@@ -25,10 +36,20 @@ const formatDateTime = (dateString: string) => {
   });
 };
 
+const formatHeatmapDate = (date: string) => {
+  const [year, month, day] = date.split('-');
+  return `${day}/${month}/${year}`;
+};
+
 const DashboardPage = () => {
   const { data: stats, isLoading: isLoadingStats } = useQuery({
     queryKey: ['dashboardStats'],
     queryFn: getDashboardStatsApi,
+  });
+
+  const { data: studyStats, isLoading: isLoadingStudyStats } = useQuery({
+    queryKey: ['studyStats'],
+    queryFn: getStudyStatsApi,
   });
 
   const { data: summaries = [], isLoading: isLoadingSummaries } = useQuery({
@@ -36,12 +57,30 @@ const DashboardPage = () => {
     queryFn: getUserSummariesApi,
   });
 
-  if (isLoadingStats || isLoadingSummaries || !stats) {
-    return <div className="p-10 text-center">Đang tải dữ liệu...</div>;
+  if (
+    isLoadingStats ||
+    isLoadingStudyStats ||
+    isLoadingSummaries ||
+    !stats ||
+    !studyStats
+  ) {
+    return (
+      <div className="max-w-5xl mx-auto p-6">
+        <BackButton className="mb-4" />
+        <div className="p-10 text-center">Đang tải dữ liệu...</div>
+      </div>
+    );
   }
+
+  const heatmapData: Activity[] = studyStats.heatmap.map((day) => ({
+    date: day.date,
+    count: Math.round(day.duration / 60),
+    level: day.level,
+  }));
 
   return (
     <div className="max-w-5xl mx-auto p-6">
+      <BackButton className="mb-4" />
       <h1 className="text-3xl font-bold mb-8 text-gray-800">Dashboard Học Tập</h1>
 
       {/* THẺ THỐNG KÊ TỔNG QUAN */}
@@ -60,6 +99,69 @@ const DashboardPage = () => {
             <h2 className="text-4xl font-bold">{stats.totalSessions} <span className="text-xl font-normal">phiên</span></h2>
           </div>
           <div className="text-5xl opacity-50">🎯</div>
+        </div>
+      </div>
+
+      {/* STREAK */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
+        <div className="bg-gradient-to-r from-orange-500 to-amber-500 text-white p-6 rounded-xl shadow-md flex items-center justify-between">
+          <div>
+            <p className="text-orange-100 font-medium mb-1">
+              Chuỗi ngày học hiện tại
+            </p>
+            <h2 className="text-4xl font-bold">
+              {studyStats.currentStreak}{' '}
+              <span className="text-xl font-normal">ngày</span>
+            </h2>
+          </div>
+          <div className="text-5xl opacity-50">🔥</div>
+        </div>
+
+        <div className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white p-6 rounded-xl shadow-md flex items-center justify-between">
+          <div>
+            <p className="text-emerald-100 font-medium mb-1">
+              Chuỗi ngày học dài nhất
+            </p>
+            <h2 className="text-4xl font-bold">
+              {studyStats.longestStreak}{' '}
+              <span className="text-xl font-normal">ngày</span>
+            </h2>
+          </div>
+          <div className="text-5xl opacity-50">🏆</div>
+        </div>
+      </div>
+
+      {/* HEATMAP ĐÓNG GÓP HỌC TẬP */}
+      <div className="bg-white border rounded-xl shadow-sm overflow-hidden mb-10">
+        <div className="p-5 border-b bg-gray-50 flex justify-between items-center">
+          <h2 className="text-lg font-bold text-gray-800">
+            Biểu đồ đóng góp học tập
+          </h2>
+          <p className="text-sm text-gray-500">365 ngày gần nhất</p>
+        </div>
+
+        <div className="p-5 overflow-x-auto">
+          <ActivityCalendar
+            data={heatmapData}
+            colorScheme="light"
+            blockSize={12}
+            blockMargin={3}
+            blockRadius={2}
+            theme={{
+              light: ['#ebedf0', '#d1fae5', '#6ee7b7', '#34d399', '#059669'],
+              dark: ['#1f2937', '#064e3b', '#047857', '#10b981', '#6ee7b7'],
+            }}
+            labels={{
+              totalCount: 'Tổng {{count}} phút học trong năm qua',
+              legend: { less: 'Ít', more: 'Nhiều' },
+            }}
+            tooltips={{
+              activity: {
+                text: (activity) =>
+                  `${activity.count} phút vào ngày ${formatHeatmapDate(activity.date)}`,
+              },
+            }}
+          />
         </div>
       </div>
 

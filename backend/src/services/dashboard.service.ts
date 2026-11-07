@@ -1,4 +1,5 @@
 import { prisma } from '../config/prisma.js';
+import { computeStudyStats } from './studyStats.js';
 
 export const getUserStats = async (userId: string) => {
   // 1. Tính tổng thời gian và tổng số phiên đã hoàn thành
@@ -40,4 +41,21 @@ export const getUserStats = async (userId: string) => {
     totalSessions,
     recentSessions,
   };
+};
+
+export const getStudyStats = async (userId: string) => {
+  // Lấy toàn bộ phiên đã hoàn thành để tính streak "từ trước đến nay".
+  const sessions = await prisma.studySession.findMany({
+    where: {
+      userId,
+      status: 'COMPLETED',
+    },
+    select: {
+      startedAt: true,
+      endedAt: true,
+      duration: true,
+    },
+  });
+
+  return computeStudyStats(sessions);
 };
