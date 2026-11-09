@@ -82,3 +82,25 @@ export const leaveRoom = async (req: Request, res: Response, next: NextFunction)
     next(error);
   }
 };
+
+export const deleteRoom = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { id: roomId } = req.params;
+    const ownerId = req.user!.userId;
+
+    if (typeof roomId !== 'string') {
+      return res.status(400).json({ success: false, message: 'Invalid room ID' });
+    }
+
+    await roomService.deleteRoom(roomId, ownerId);
+
+    res.status(204).send();
+  } catch (error) {
+    if (error instanceof Error && (error as Error & { statusCode?: number }).statusCode) {
+      return res
+        .status((error as Error & { statusCode: number }).statusCode!)
+        .json({ success: false, message: error.message });
+    }
+    next(error);
+  }
+};

@@ -5,6 +5,7 @@ import {
   getMembers,
   kickMember,
   leaveRoom,
+  deleteRoom,
 } from '../controllers/room.controller.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 import { uploadAudio } from '../middleware/upload.middleware.js';
@@ -24,6 +25,7 @@ roomRouter.get('/', getMyRooms);  // GET /api/v1/rooms
 roomRouter.get('/:id/members', getMembers);                 // GET /api/v1/rooms/:id/members
 roomRouter.delete('/:id/members/:userId', kickMember);      // DELETE /api/v1/rooms/:id/members/:userId
 roomRouter.delete('/:id/members/me', leaveRoom);            // DELETE /api/v1/rooms/:id/members/me
+roomRouter.delete('/:id', deleteRoom);                      // DELETE /api/v1/rooms/:id (chủ phòng xóa)
 
 // Tin nhắn (mount vào roomRouter)
 roomRouter.use('/:roomId', messageRouter);                  // GET/POST /api/v1/rooms/:roomId/messages

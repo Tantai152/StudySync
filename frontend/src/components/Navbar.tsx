@@ -67,6 +67,12 @@ export const Navbar = () => {
                 >
                   Bạn bè
                 </Link>
+                <Link
+                  to="/search"
+                  className="text-sm font-medium text-gray-700 hover:text-gray-900"
+                >
+                  Tìm bạn
+                </Link>
 
                 <div className="relative" ref={menuRef}>
                   <button

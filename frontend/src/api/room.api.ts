@@ -75,6 +75,11 @@ export const leaveRoomApi = async (roomId: string): Promise<void> => {
   await api.delete(`/rooms/${roomId}/members/me`);
 };
 
+// Gọi API xóa phòng (chủ phòng)
+export const deleteRoomApi = async (roomId: string): Promise<void> => {
+  await api.delete(`/rooms/${roomId}`);
+};
+
 // Lấy lịch sử tin nhắn của phòng
 export const getMessagesApi = async (roomId: string) => {
   const response = await api.get(`/rooms/${roomId}/messages`);
