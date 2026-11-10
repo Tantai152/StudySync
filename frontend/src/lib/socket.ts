@@ -9,7 +9,7 @@ export const connectSocket = () => {
   const token = getAccessToken();
   if (!token) return null;
 
-  socket = io('http://localhost:3000', {
+  socket = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:3000', {
     auth: { token },
     autoConnect: true,
   });

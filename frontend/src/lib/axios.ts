@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // 1. Tạo một instance riêng chỉ để gọi API Refresh (không gắn interceptor để tránh vòng lặp)
 const refreshClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1',
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1',
   withCredentials: true,
 });
 
@@ -39,7 +39,7 @@ const processQueue = (error: unknown, token: string | null = null) => {
 
 // 3. Instance chính để gọi API
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1',
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1',
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json',

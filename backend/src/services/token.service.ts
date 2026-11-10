@@ -36,7 +36,7 @@ export const generateTokens = async (userId: string, res: Response) => {
   res.cookie('refreshToken', refreshToken, {
     httpOnly: true,
     secure: env.NODE_ENV === 'production', // Chỉ bật secure khi có HTTPS (production)
-    sameSite: 'lax', // Chống CSRF cơ bản
+    sameSite: 'none', // Chống CSRF cơ bản (bắt buộc secure khi cross-origin)
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 ngày
   });
 
