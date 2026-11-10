@@ -110,6 +110,35 @@ export const kickMember = async (
   });
 };
 
+export const deleteRoom = async (roomId: string, ownerId: string) => {
+  // Kiểm tra user có phải là thành viên OWNER của phòng không
+  const membership = await prisma.roomMember.findUnique({
+    where: { roomId_userId: { roomId, userId: ownerId } },
+  });
+
+  if (!membership) {
+    const error = new Error('Phòng không tồn tại') as Error & {
+      statusCode: number;
+    };
+    error.statusCode = 404;
+    throw error;
+  }
+
+  if (membership.role !== 'OWNER') {
+    const error = new Error(
+      'Chỉ chủ phòng mới có quyền xóa phòng'
+    ) as Error & { statusCode: number };
+    error.statusCode = 403;
+    throw error;
+  }
+
+  // Xóa phòng. Các bản ghi liên quan (members, invites, messages, sessions,
+  // summaries, transcriptions) bị xóa theo nhờ onDelete: Cascade trong schema.
+  await prisma.room.delete({
+    where: { id: roomId },
+  });
+};
+
 export const leaveRoom = async (roomId: string, userId: string) => {
   // Kiểm tra user có phải là thành viên của phòng không
   const membership = await prisma.roomMember.findUnique({

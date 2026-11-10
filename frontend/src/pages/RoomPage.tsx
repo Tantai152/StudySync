@@ -1,10 +1,14 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   getMessagesApi,
   generateInviteLinkApi,
   getRoomSummaryApi,
+  getRoomsApi,
+  getRoomMembersApi,
+  leaveRoomApi,
+  deleteRoomApi,
 } from '../api/room.api';
 import api, { getAccessToken } from '../lib/axios';
 import { connectSocket, getSocket } from '../lib/socket';
@@ -31,9 +35,11 @@ interface Message {
 
 const RoomPage = () => {
   const { roomId } = useParams<{ roomId: string }>();
+  const navigate = useNavigate();
   const [inputMsg, setInputMsg] = useState('');
   const [isConnected, setIsConnected] = useState(false);
   const [currentUserId, setCurrentUserId] = useState('');
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
   const { show: showToast } = useToast();
@@ -74,6 +80,25 @@ const RoomPage = () => {
     },
     retry: false,
   });
+
+  // Danh sách phòng của user (dùng để lấy tên phòng hiện tại)
+  const { data: rooms = [] } = useQuery({
+    queryKey: ['rooms'],
+    queryFn: getRoomsApi,
+  });
+
+  const roomName = rooms.find((r) => r.id === roomId)?.name || 'Phòng';
+
+  // Thành viên phòng (dùng để xác định vai trò OWNER/MEMBER của chính mình)
+  const { data: members = [] } = useQuery({
+    queryKey: ['roomMembers', roomId],
+    queryFn: () => getRoomMembersApi(roomId!),
+    enabled: !!roomId && !!currentUserId,
+  });
+
+  const isOwner = members.some(
+    (m) => m.userId === currentUserId && m.role === 'OWNER'
+  );
 
   // 2. Trích xuất userId từ Token
   useEffect(() => {
@@ -164,6 +189,34 @@ const RoomPage = () => {
     }
   };
 
+  const handleDeleteRoom = async () => {
+    if (!roomId) return;
+    if (!window.confirm('Bạn chắc chắn muốn xóa phòng này? Tất cả dữ liệu trong phòng sẽ bị xóa.')) {
+      return;
+    }
+    try {
+      await deleteRoomApi(roomId);
+      setSettingsOpen(false);
+      navigate('/');
+    } catch {
+      showToast('Không thể xóa phòng. Vui lòng thử lại.', 'error');
+    }
+  };
+
+  const handleLeaveRoom = async () => {
+    if (!roomId) return;
+    if (!window.confirm('Bạn chắc chắn muốn rời phòng này?')) {
+      return;
+    }
+    try {
+      await leaveRoomApi(roomId);
+      setSettingsOpen(false);
+      navigate('/');
+    } catch {
+      showToast('Không thể rời phòng. Vui lòng thử lại.', 'error');
+    }
+  };
+
   if (isLoadingUser || isLoadingMessages) {
     return <div className="p-6 text-center text-gray-500">Đang tải dữ liệu phòng chat...</div>;
   }
@@ -180,13 +233,54 @@ const RoomPage = () => {
             {isConnected ? 'Trực tuyến' : 'Đang kết nối...'}
           </div>
         </div>
-        <button
-          onClick={handleCopyInvite}
-          className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <UserPlusIcon />
-          <span>Mời bạn bè</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleCopyInvite}
+            className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <UserPlusIcon />
+            <span>Mời bạn bè</span>
+          </button>
+          <div className="relative">
+            <button
+              onClick={() => setSettingsOpen((open) => !open)}
+              aria-haspopup="menu"
+              aria-expanded={settingsOpen}
+              aria-label="Cài đặt phòng"
+              className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="1" />
+                <circle cx="12" cy="5" r="1" />
+                <circle cx="12" cy="19" r="1" />
+              </svg>
+              <span>Cài đặt</span>
+            </button>
+
+            {settingsOpen && (
+              <div
+                className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg py-1"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {isOwner ? (
+                  <button
+                    onClick={handleDeleteRoom}
+                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                  >
+                    Xóa phòng
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleLeaveRoom}
+                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                  >
+                    Rời phòng
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* CONTENT AREA */}
@@ -241,7 +335,7 @@ const RoomPage = () => {
             <StudyTimer roomId={roomId} socket={socket} />
             <VoicePanel roomId={roomId} />
 
-            {/* Nút xem tóm tắt buổi trước */}
+            {/* Nút xem tóm tắt */}
             <button
               onClick={() => {
                 setShowSummaryModal(true);
@@ -250,7 +344,7 @@ const RoomPage = () => {
               className="mt-4 px-4 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors w-full"
               disabled={isLoadingSummary}
             >
-              {isLoadingSummary ? 'Đang tải...' : 'Xem tóm tắt buổi trước'}
+              {isLoadingSummary ? 'Đang tải...' : 'Xem tóm tắt gần nhất'}
             </button>
           </div>
         )}
@@ -289,7 +383,7 @@ const RoomPage = () => {
             <div className="space-y-3">
               <div className="flex justify-between items-start mb-4">
                 <span className="text-sm font-medium text-gray-600">
-                  Phòng: {summaryData.roomId}
+                  Phòng: {roomName}
                 </span>
                 <span className="text-sm text-gray-500">
                   {new Date(summaryData.createdAt).toLocaleString('vi-VN', {

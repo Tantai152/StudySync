@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getRequestsApi, respondRequestApi, getFriendsApi } from '../api/friend.api';
 import { BackButton } from '../components/BackButton';
+import { Link } from 'react-router-dom';
 
 interface FriendUser {
   id: string;
@@ -90,7 +91,15 @@ const FriendsPage = () => {
         {isLoadingFriends ? (
           <p>Đang tải...</p>
         ) : friends?.length === 0 ? (
-          <p className="text-gray-500">Bạn chưa có người bạn nào. Hãy vào trang Tìm kiếm để kết bạn nhé!</p>
+          <div className="text-gray-500">
+            <p>Bạn chưa có người bạn nào. Hãy vào trang Tìm kiếm để kết bạn nhé!</p>
+            <Link
+              to="/search"
+              className="mt-2 inline-block px-4 py-2 text-sm font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700 transition-colors"
+            >
+              Tìm kiếm người dùng
+            </Link>
+          </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {friends?.map((friend) => (
