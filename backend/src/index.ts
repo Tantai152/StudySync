@@ -1,11 +1,18 @@
 import { createServer } from 'http';
 import { Server } from 'socket.io';
+import swaggerUi from 'swagger-ui-express';
+import swaggerJSDoc from 'swagger-jsdoc';
 import { createApp } from './app.js';
 import { env } from './config/env.js';
+import { swaggerOptions } from './config/swagger.js';
 import { setupSocket } from './sockets/socket.js';
 import { registerVoiceNamespace } from './socket/voice.socket.js';
 
 const app = createApp();
+
+// Cấu hình Swagger (OpenAPI) và mount route /api-docs
+const swaggerSpec = swaggerJSDoc(swaggerOptions);
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Tạo HTTP server từ app Express
 const server = createServer(app);
@@ -13,7 +20,7 @@ const server = createServer(app);
 // Khởi tạo Socket.IO và cấu hình CORS
 const io = new Server(server, {
   cors: {
-    origin: env.CORS_ORIGIN,
+    origin: env.FRONTEND_URL,
     credentials: true,
   },
 });

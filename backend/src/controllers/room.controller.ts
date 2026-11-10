@@ -1,6 +1,34 @@
 import { Request, Response, NextFunction } from 'express';
 import * as roomService from '../services/room.service.js';
 
+/**
+ * @openapi
+ * /rooms:
+ *   post:
+ *     tags: [Rooms]
+ *     summary: Tạo phòng học
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [name]
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 example: Toán cao cấp
+ *               description:
+ *                 type: string
+ *                 example: Phòng họcroup toán cho sinh viên
+ *     responses:
+ *       201:
+ *         description: Tạo phòng thành công
+ *       400:
+ *         description: Tên phòng không được để trống
+ */
 export const createRoom = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { name, description } = req.body;
@@ -22,6 +50,18 @@ export const createRoom = async (req: Request, res: Response, next: NextFunction
   }
 };
 
+/**
+ * @openapi
+ * /rooms:
+ *   get:
+ *     tags: [Rooms]
+ *     summary: Lấy danh sách phòng của user
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Danh sách phòng
+ */
 export const getMyRooms = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = req.user!.userId;
@@ -32,6 +72,24 @@ export const getMyRooms = async (req: Request, res: Response, next: NextFunction
   }
 };
 
+/**
+ * @openapi
+ * /rooms/{id}/members:
+ *   get:
+ *     tags: [Rooms]
+ *     summary: Lấy danh sách thành viên phòng
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Danh sách thành viên
+ */
 export const getMembers = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id: roomId } = req.params;

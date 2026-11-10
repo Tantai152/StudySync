@@ -10,7 +10,7 @@ const envSchema = z.object({
   DB_USER: z.string().default('studysync'),
   DB_PASSWORD: z.string().default('studysync'),
   DB_NAME: z.string().default('studysync'),
-  CORS_ORIGIN: z.string().default('http://localhost:5173'),
+  FRONTEND_URL: z.string().default('http://localhost:5173'),
   
   // Đã xóa JWT_SECRET và JWT_EXPIRES_IN thừa thãi
   JWT_ACCESS_SECRET: z.string().min(1, 'JWT_ACCESS_SECRET is required'),
