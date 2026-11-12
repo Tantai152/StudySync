@@ -37,7 +37,7 @@ RUN npm ci --omit=dev
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
 
-# Render sẽ tự inject biến PORT, nhưng khai báo cho chắc
+# Render sẽ tự inject biến PORT
 EXPOSE 3000
 
 # Chạy app
