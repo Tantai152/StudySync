@@ -1,31 +1,44 @@
-# === Stage 1: cài dependencies ===
-FROM node:20-alpine AS deps
+# Stage 1: Build
+FROM node:20-alpine AS builder
+
 WORKDIR /app
-# Prisma engine cần OpenSSL để chạy trên Alpine
-RUN apk add --no-cache openssl libc6-compat
-COPY package.json package-lock.json ./
+
+# Cài openssl cho Prisma
+RUN apk add --no-cache openssl
+
+# Copy file package để cài dependencies
+COPY package*.json ./
+COPY prisma ./prisma/
+
+# Cài toàn bộ dependencies (bao gồm cả devDeps để build TS)
 RUN npm ci
 
-# === Stage 2: build (prisma generate + tsc) ===
-FROM node:20-alpine AS build
-WORKDIR /app
-RUN apk add --no-cache openssl libc6-compat
-COPY --from=deps /app/node_modules ./node_modules
+# Copy toàn bộ source code
 COPY . .
-# Sinh Prisma Client trước khi compile TypeScript
+
+# Generate Prisma Client và Build TypeScript
 RUN npx prisma generate
 RUN npm run build
 
-# === Stage 3: runner (chỉ chứa dist + production deps) ===
-FROM node:20-alpine
-WORKDIR /app
-ENV NODE_ENV=production
-# Prisma engine cần OpenSSL để chạy trên Alpine
-RUN apk add --no-cache openssl libc6-compat
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=build /app/package.json ./
-COPY --from=build /app/package-lock.json ./
-COPY --from=build /app/dist ./dist
+# Stage 2: Runner (Production)
+FROM node:20-alpine AS runner
 
+WORKDIR /app
+
+RUN apk add --no-cache openssl
+
+# Copy package.json và package-lock.json
+COPY --from=builder /app/package*.json ./
+
+# Cài CHỈ production dependencies
+RUN npm ci --omit=dev
+
+# Copy thư mục dist (code đã build) và prisma
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/prisma ./prisma
+
+# Render sẽ tự inject biến PORT
 EXPOSE 3000
+
+# Chạy app
 CMD ["npm", "run", "start"]
