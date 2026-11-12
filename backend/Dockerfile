@@ -23,6 +23,8 @@ ENV NODE_ENV=production
 # Prisma engine cần OpenSSL để chạy trên Alpine
 RUN apk add --no-cache openssl libc6-compat
 COPY --from=deps /app/node_modules ./node_modules
+COPY --from=build /app/package.json ./
+COPY --from=build /app/package-lock.json ./
 COPY --from=build /app/dist ./dist
 
 EXPOSE 3000
