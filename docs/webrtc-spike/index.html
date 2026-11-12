@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StudySync WebRTC Spike</title>
+</head>
+<body>
+  <h1>StudySync WebRTC Audio Spike</h1>
+
+  <button id="startBtn">Start Microphone</button>
+  <button id="callBtn" disabled>Create Offer</button>
+
+  <h3>Local SDP</h3>
+  <textarea id="localSdp" rows="10" cols="80" readonly></textarea>
+
+  <h3>Remote SDP</h3>
+  <textarea id="remoteSdp" rows="10" cols="80"></textarea>
+
+  <br /><br />
+
+  <button id="applyBtn">Apply Remote SDP</button>
+
+  <h3>Status</h3>
+  <p id="status">Idle</p>
+
+  <audio id="remoteAudio" autoplay></audio>
+
+  <script src="app.js"></script>
+</body>
+</html>
