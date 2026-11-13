@@ -21,6 +21,42 @@ const startBodySchema = z.object({
   }),
 });
 
+/**
+ * @openapi
+ * /rooms/{roomId}/sessions/start:
+ *   post:
+ *     tags: [StudySessions]
+ *     summary: Bắt đầu phiên học mới
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: roomId
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               goal:
+ *                 type: string
+ *                 maxLength: 200
+ *                 example: 'Học xong chương 3'
+ *     responses:
+ *       201:
+ *         description: Bắt đầu phiên học thành công
+ *       400:
+ *         description: Tham số không hợp lệ
+ *       401:
+ *         description: Chưa đăng nhập
+ *       409:
+ *         description: Đã có phiên học đang hoạt động
+ *       404:
+ *         description: Không tìm thấy phòng
+ */
 export const start = async (
   req: Request,
   res: Response,
@@ -71,6 +107,35 @@ export const start = async (
   }
 };
 
+/**
+ * @openapi
+ * /rooms/{roomId}/sessions/{sessionId}/pause:
+ *   patch:
+ *     tags: [StudySessions]
+ *     summary: Tạm dừng phiên học
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: roomId
+ *         required: true
+ *         schema: { type: string }
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: Tạm dừng thành công
+ *       400:
+ *         description: Tham số không hợp lệ
+ *       401:
+ *         description: Chưa đăng nhập
+ *       404:
+ *         description: Không tìm thấy phiên học
+ *       409:
+ *         description: Phiên học không ở trạng thái chạy
+ */
 export const pause = async (
   req: Request,
   res: Response,
@@ -110,6 +175,35 @@ export const pause = async (
   }
 };
 
+/**
+ * @openapi
+ * /rooms/{roomId}/sessions/{sessionId}/resume:
+ *   patch:
+ *     tags: [StudySessions]
+ *     summary: Tiếp tục phiên học sau khi tạm dừng
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: roomId
+ *         required: true
+ *         schema: { type: string }
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: Tiếp tục thành công
+ *       400:
+ *         description: Tham số không hợp lệ
+ *       401:
+ *         description: Chưa đăng nhập
+ *       404:
+ *         description: Không tìm thấy phiên học
+ *       409:
+ *         description: Phiên học không ở trạng thái tạm dừng
+ */
 export const resume = async (
   req: Request,
   res: Response,
@@ -149,6 +243,35 @@ export const resume = async (
   }
 };
 
+/**
+ * @openapi
+ * /rooms/{roomId}/sessions/{sessionId}/finish:
+ *   patch:
+ *     tags: [StudySessions]
+ *     summary: Kết thúc phiên học
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: roomId
+ *         required: true
+ *         schema: { type: string }
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: Kết thúc thành công
+ *       400:
+ *         description: Tham số không hợp lệ
+ *       401:
+ *         description: Chưa đăng nhập
+ *       404:
+ *         description: Không tìm thấy phiên học
+ *       409:
+ *         description: Phiên học không ở trạng thái chạy hoặc tạm dừng
+ */
 export const finish = async (
   req: Request,
   res: Response,
@@ -188,6 +311,27 @@ export const finish = async (
   }
 };
 
+/**
+ * @openapi
+ * /rooms/{roomId}/sessions/current:
+ *   get:
+ *     tags: [StudySessions]
+ *     summary: Lấy phiên học đang hoạt động (nếu có)
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: roomId
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: Thông tin phiên học hiện tại hoặc null
+ *       401:
+ *         description: Chưa đăng nhập
+ *       404:
+ *         description: Không tìm thấy phòng
+ */
 export const current = async (
   req: Request,
   res: Response,

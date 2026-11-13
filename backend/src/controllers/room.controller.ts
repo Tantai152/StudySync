@@ -157,6 +157,31 @@ export const addMember = async (req: Request, res: Response, next: NextFunction)
   }
 };
 
+/**
+ * @openapi
+ * /rooms/{id}/members/{userId}:
+ *   delete:
+ *     tags: [Rooms]
+ *     summary: Kick thành viên khỏi phòng (chỉ OWNER)
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       204:
+ *         description: Kick thành viên thành công
+ *       403:
+ *         description: Không phải OWNER
+ *       404:
+ *         description: Không tìm thấy phòng hoặc thành viên
+ */
 export const kickMember = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id: roomId, userId: targetUserId } = req.params;
@@ -174,6 +199,25 @@ export const kickMember = async (req: Request, res: Response, next: NextFunction
   }
 };
 
+/**
+ * @openapi
+ * /rooms/{id}/members/me:
+ *   delete:
+ *     tags: [Rooms]
+ *     summary: Rời khỏi phòng
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       204:
+ *         description: Rời phòng thành công
+ *       404:
+ *         description: Không tìm thấy phòng
+ */
 export const leaveRoom = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id: roomId } = req.params;
@@ -191,6 +235,27 @@ export const leaveRoom = async (req: Request, res: Response, next: NextFunction)
   }
 };
 
+/**
+ * @openapi
+ * /rooms/{id}:
+ *   delete:
+ *     tags: [Rooms]
+ *     summary: Xóa phòng (chỉ OWNER)
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       204:
+ *         description: Xóa phòng thành công
+ *       403:
+ *         description: Không phải OWNER
+ *       404:
+ *         description: Không tìm thấy phòng
+ */
 export const deleteRoom = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id: roomId } = req.params;

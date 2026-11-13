@@ -34,9 +34,47 @@ const resolveFileName = (originalName: string, mimetype: string): string => {
 };
 
 /**
- * POST /api/v1/rooms/:roomId/transcribe
- * Nhận file audio (multipart field "audio"), chuyển thành text bằng Groq
- * Whisper, lưu vào bảng Transcription và trả về text.
+ * @openapi
+ * /rooms/{roomId}/transcribe:
+ *   post:
+ *     tags: [Transcription]
+ *     summary: Chuyển audio thành text (Groq Whisper)
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: roomId
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required: [audio]
+ *             properties:
+ *               audio:
+ *                 type: string
+ *                 format: binary
+ *                 description: File audio (webm, ogg, wav, mp3, m4a)
+ *               language:
+ *                 type: string
+ *                 minLength: 2
+ *                 maxLength: 5
+ *                 example: 'vi'
+ *                 description: Mã ngôn ngữ (mặc định: vi)
+ *     responses:
+ *       201:
+ *         description: Chuyển đổi thành công
+ *       400:
+ *         description: Thiếu file audio hoặc dữ liệu không hợp lệ
+ *       401:
+ *         description: Chưa đăng nhập
+ *       404:
+ *         description: Không tìm thấy phòng
+ *       502:
+ *         description: Lỗi dịch vụ Groq
  */
 export const transcribeRoomAudio = async (
   req: Request,

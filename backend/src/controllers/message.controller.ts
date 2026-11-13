@@ -29,8 +29,32 @@ const sendMessageBodySchema = z.object({
 });
 
 /**
- * GET /api/v1/rooms/:roomId/messages
- * Lấy lịch sử chat (cursor pagination, ASC).
+ * @openapi
+ * /rooms/{roomId}/messages:
+ *   get:
+ *     tags: [Messages]
+ *     summary: Lấy lịch sử chat (cursor pagination, ASC)
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: roomId
+ *         required: true
+ *         schema: { type: string }
+ *       - in: query
+ *         name: cursor
+ *         schema: { type: string }
+ *         description: Cursor cho pagination
+ *       - in: query
+ *         name: limit
+ *         schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+ *     responses:
+ *       200:
+ *         description: Danh sách tin nhắn
+ *       401:
+ *         description: Chưa đăng nhập
+ *       404:
+ *         description: Không tìm thấy phòng
  */
 export const getMessages = async (
   req: Request,
@@ -79,8 +103,42 @@ export const getMessages = async (
 };
 
 /**
- * POST /api/v1/rooms/:roomId/messages
- * Gửi tin nhắn mới.
+ * @openapi
+ * /rooms/{roomId}/messages:
+ *   post:
+ *     tags: [Messages]
+ *     summary: Gửi tin nhắn mới
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: roomId
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [content]
+ *             properties:
+ *               content:
+ *                 type: string
+ *                 maxLength: 1000
+ *                 example: 'Xin chào mọi người!'
+ *               clientId:
+ *                 type: string
+ *                 description: ID idempotency từ client
+ *     responses:
+ *       201:
+ *         description: Gửi tin nhắn thành công
+ *       400:
+ *         description: Dữ liệu không hợp lệ
+ *       401:
+ *         description: Chưa đăng nhập
+ *       404:
+ *         description: Không tìm thấy phòng
  */
 export const createMessage = async (
   req: Request,

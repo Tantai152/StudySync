@@ -11,9 +11,25 @@ const paramsSchema = z.object({
 });
 
 /**
- * GET /api/v1/rooms/:roomId/summary
- * Trả về bản tóm tắt mới nhất của phòng (null nếu chưa có).
- * Yêu cầu đăng nhập và là thành viên của phòng.
+ * @openapi
+ * /rooms/{roomId}/summary:
+ *   get:
+ *     tags: [Summary]
+ *     summary: Lấy bản tóm tắt mới nhất của phòng
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: roomId
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: Bản tóm tắt phòng (null nếu chưa có)
+ *       401:
+ *         description: Chưa đăng nhập
+ *       404:
+ *         description: Không tìm thấy phòng hoặc không phải thành viên
  */
 export const getRoomSummary = async (
   req: Request,
@@ -51,10 +67,18 @@ export const getRoomSummary = async (
 };
 
 /**
- * GET /api/v1/users/me/summaries
- * Trả về danh sách 10 bản tóm tắt mới nhất của tất cả các phòng
- * mà user hiện tại là thành viên.
- * Yêu cầu đăng nhập.
+ * @openapi
+ * /users/me/summaries:
+ *   get:
+ *     tags: [Summary]
+ *     summary: Lấy danh sách 10 bản tóm tắt mới nhất của user
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Danh sách bản tóm tắt
+ *       401:
+ *         description: Chưa đăng nhập
  */
 export const getUserSummaries = async (
   req: Request,

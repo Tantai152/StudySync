@@ -63,6 +63,22 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
   }
 }
 
+/**
+ * @openapi
+ * /auth/me:
+ *   get:
+ *     tags: [Auth]
+ *     summary: Lấy thông tin user hiện tại
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Thông tin user
+ *       401:
+ *         description: Chưa đăng nhập
+ *       404:
+ *         description: Không tìm thấy user
+ */
 export async function meController(
   req: Request,
   res: Response,
@@ -99,6 +115,37 @@ export async function meController(
   }
 }
 
+/**
+ * @openapi
+ * /auth/register:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Đăng ký tài khoản mới
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email, password, name]
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 example: user@example.com
+ *               password:
+ *                 type: string
+ *                 example: password123
+ *               name:
+ *                 type: string
+ *                 example: Nguyễn Văn A
+ *     responses:
+ *       201:
+ *         description: Đăng ký thành công
+ *       400:
+ *         description: Dữ liệu không hợp lệ
+ *       409:
+ *         description: Email đã tồn tại
+ */
 export const register = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { email, password, name } = req.body;
@@ -115,7 +162,18 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
 
 import { verifyRefreshToken, revokeRefreshToken } from '../services/token.service.js';
 
-// API Làm mới Token
+/**
+ * @openapi
+ * /auth/refresh:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Làm mới access token (rotating refresh token)
+ *     responses:
+ *       200:
+ *         description: Access token mới
+ *       401:
+ *         description: Refresh token không hợp lệ hoặc hết hạn
+ */
 export const refresh = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { refreshToken } = req.cookies;
@@ -145,7 +203,18 @@ export const refresh = async (req: Request, res: Response, next: NextFunction) =
   }
 };
 
-// API Đăng xuất
+/**
+ * @openapi
+ * /auth/logout:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Đăng xuất (thu hồi refresh token và xóa cookie)
+ *     responses:
+ *       204:
+ *         description: Đăng xuất thành công
+ *       401:
+ *         description: Chưa đăng nhập
+ */
 export const logout = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { refreshToken } = req.cookies;
