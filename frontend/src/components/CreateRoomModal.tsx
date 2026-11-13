@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolverV4 } from '../lib/zodResolver';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from './ToastContext';
 import { createRoomSchema, type CreateRoomFormData } from '../schemas/room.schema';
 import { createRoomApi } from '../api/room.api';
@@ -18,6 +18,7 @@ export const CreateRoomModal = ({
   onSuccess,
 }: CreateRoomModalProps) => {
   const { show } = useToast();
+  const queryClient = useQueryClient();
   const [apiError, setApiError] = useState<string | null>(null);
 
   const {
@@ -33,6 +34,7 @@ export const CreateRoomModal = ({
   const createMutation = useMutation({
     mutationFn: createRoomApi,
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['rooms'] });
       reset();
       setApiError(null);
       onClose();

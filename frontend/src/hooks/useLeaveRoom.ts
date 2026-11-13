@@ -8,6 +8,7 @@ export const useLeaveRoom = (roomId: string, onSuccessCallback?: () => void) => 
     mutationFn: () => leaveRoomApi(roomId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['roomMembers', roomId] });
+      queryClient.invalidateQueries({ queryKey: ['rooms'] });
       onSuccessCallback?.();
     },
   });

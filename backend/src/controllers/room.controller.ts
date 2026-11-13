@@ -107,6 +107,56 @@ export const getMembers = async (req: Request, res: Response, next: NextFunction
   }
 };
 
+/**
+ * @openapi
+ * /rooms/{id}/members:
+ *   post:
+ *     tags: [Rooms]
+ *     summary: Thêm bạn bè vào phòng (chỉ OWNER)
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [userId]
+ *             properties:
+ *               userId: { type: string, example: 'abc123' }
+ *     responses:
+ *       201: { description: Thêm thành viên thành công }
+ *       403: { description: Không phải bạn bè hoặc không phải OWNER }
+ */
+export const addMember = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { id: roomId } = req.params;
+    const { userId } = req.body;
+    const ownerId = req.user!.userId;
+
+    if (typeof roomId !== 'string' || typeof userId !== 'string') {
+      return res.status(400).json({ success: false, message: 'Invalid parameters' });
+    }
+
+    const result = await roomService.addMember(roomId, ownerId, userId);
+
+    res.status(201).json({
+      success: true,
+      message: result.alreadyMember
+        ? 'Người này đã là thành viên của phòng'
+        : 'Thêm thành viên vào phòng thành công',
+      data: { roomId, userId, alreadyMember: result.alreadyMember },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const kickMember = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id: roomId, userId: targetUserId } = req.params;

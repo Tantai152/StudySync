@@ -3,7 +3,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   getMessagesApi,
-  generateInviteLinkApi,
   getRoomSummaryApi,
   getRoomsApi,
   getRoomMembersApi,
@@ -15,6 +14,7 @@ import { connectSocket, getSocket } from '../lib/socket';
 import { useToast } from '../components/ToastContext';
 import StudyTimer from '../components/StudyTimer';
 import VoicePanel from '../components/VoicePanel';
+import InviteFriendsModal from '../components/InviteFriendsModal';
 
 // Icon mời bạn bè
 const UserPlusIcon = ({ className = '' }: { className?: string }) => (
@@ -40,6 +40,7 @@ const RoomPage = () => {
   const [isConnected, setIsConnected] = useState(false);
   const [currentUserId, setCurrentUserId] = useState('');
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
   const { show: showToast } = useToast();
@@ -178,17 +179,6 @@ const RoomPage = () => {
     }
   };
 
-  // 7. Tạo link mời
-  const handleCopyInvite = async () => {
-    try {
-      const { link } = await generateInviteLinkApi(roomId!);
-      await navigator.clipboard.writeText(link);
-      showToast('Đã copy link mời!', 'success');
-    } catch (error) {
-      showToast('Không thể tạo link mời. Vui lòng thử lại.', 'error');
-    }
-  };
-
   const handleDeleteRoom = async () => {
     if (!roomId) return;
     if (!window.confirm('Bạn chắc chắn muốn xóa phòng này? Tất cả dữ liệu trong phòng sẽ bị xóa.')) {
@@ -196,6 +186,8 @@ const RoomPage = () => {
     }
     try {
       await deleteRoomApi(roomId);
+      queryClient.invalidateQueries({ queryKey: ['rooms'] });
+      queryClient.invalidateQueries({ queryKey: ['roomMembers', roomId] });
       setSettingsOpen(false);
       navigate('/');
     } catch {
@@ -210,6 +202,8 @@ const RoomPage = () => {
     }
     try {
       await leaveRoomApi(roomId);
+      queryClient.invalidateQueries({ queryKey: ['rooms'] });
+      queryClient.invalidateQueries({ queryKey: ['roomMembers', roomId] });
       setSettingsOpen(false);
       navigate('/');
     } catch {
@@ -235,7 +229,7 @@ const RoomPage = () => {
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={handleCopyInvite}
+            onClick={() => setIsInviteModalOpen(true)}
             className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
           >
             <UserPlusIcon />
@@ -422,6 +416,11 @@ const RoomPage = () => {
         </div>
       </div>
     )}
+    <InviteFriendsModal
+      isOpen={isInviteModalOpen}
+      onClose={() => setIsInviteModalOpen(false)}
+      roomId={roomId!}
+    />
     </React.Fragment>
   );
 };
