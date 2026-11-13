@@ -139,6 +139,82 @@ export const deleteRoom = async (roomId: string, ownerId: string) => {
   });
 };
 
+export const addMember = async (
+  roomId: string,
+  ownerId: string,
+  userId: string
+) => {
+  // Không thể tự thêm chính mình
+  if (ownerId === userId) {
+    const error = new Error('Không thể tự thêm chính mình vào phòng') as Error & {
+      statusCode: number;
+    };
+    error.statusCode = 400;
+    throw error;
+  }
+
+  // Kiểm tra phòng tồn tại
+  const room = await prisma.room.findUnique({ where: { id: roomId } });
+  if (!room) {
+    const error = new Error('Phòng không tồn tại') as Error & {
+      statusCode: number;
+    };
+    error.statusCode = 404;
+    throw error;
+  }
+
+  // Chỉ OWNER mới được phép thêm thành viên
+  const ownerMembership = await prisma.roomMember.findUnique({
+    where: { roomId_userId: { roomId, userId: ownerId } },
+  });
+
+  if (!ownerMembership || ownerMembership.role !== 'OWNER') {
+    const error = new Error(
+      'Chỉ chủ phòng mới có quyền thêm thành viên'
+    ) as Error & { statusCode: number };
+    error.statusCode = 403;
+    throw error;
+  }
+
+  // Kiểm tra user có phải là bạn bè của OWNER không
+  const friendship = await prisma.friendship.findFirst({
+    where: {
+      OR: [
+        { user1Id: ownerId, user2Id: userId },
+        { user1Id: userId, user2Id: ownerId },
+      ],
+    },
+  });
+
+  if (!friendship) {
+    const error = new Error('Người này chưa là bạn bè của bạn') as Error & {
+      statusCode: number;
+    };
+    error.statusCode = 403;
+    throw error;
+  }
+
+  // Idempotent: nếu đã trong phòng thì trả về thành công (không tạo trùng)
+  const existingMembership = await prisma.roomMember.findUnique({
+    where: { roomId_userId: { roomId, userId } },
+  });
+
+  if (existingMembership) {
+    return { alreadyMember: true, roomId, userId };
+  }
+
+  // Thêm thành viên vào phòng với quyền MEMBER
+  await prisma.roomMember.create({
+    data: {
+      roomId,
+      userId,
+      role: 'MEMBER',
+    },
+  });
+
+  return { alreadyMember: false, roomId, userId };
+};
+
 export const leaveRoom = async (roomId: string, userId: string) => {
   // Kiểm tra user có phải là thành viên của phòng không
   const membership = await prisma.roomMember.findUnique({

@@ -57,15 +57,8 @@ test.describe('Rooms and Chat', () => {
     // Assert message appears on screen
     await expect(page.locator(`text=${messageContent}`)).toBeVisible({ timeout: 10000 });
 
-    // Click "Mời bạn bè" and wait for the invite API to succeed
-    const inviteRespPromise = page.waitForResponse(
-      (r) => r.url().includes('/invites') && r.request().method() === 'POST'
-    );
+    // Click "Mời bạn bè" and assert the invite friends modal opens
     await page.locator('button:has-text("Mời bạn bè")').click();
-    const inviteResp = await inviteRespPromise;
-    expect(inviteResp.status()).toBeLessThan(300);
-
-    // Assert success toast (clipboard write now permitted)
-    await expect(page.locator('text=Đã copy link mời!')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText('Mời bạn bè vào phòng')).toBeVisible({ timeout: 10000 });
   });
 });

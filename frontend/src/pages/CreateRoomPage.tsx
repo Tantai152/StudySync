@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createRoomApi, CreateRoomData } from '../api/room.api';
 import { BackButton } from '../components/BackButton';
 import { AxiosError } from 'axios';
@@ -11,6 +11,7 @@ interface ErrorResponse {
 
 const CreateRoomPage = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
@@ -18,6 +19,7 @@ const CreateRoomPage = () => {
   const mutation = useMutation({
     mutationFn: createRoomApi,
     onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['rooms'] });
       alert('Tạo phòng thành công!');
       navigate(`/rooms/${data.id}`); // Chuyển hướng vào thẳng phòng vừa tạo
     },

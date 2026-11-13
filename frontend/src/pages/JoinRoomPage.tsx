@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { AxiosError } from 'axios';
 import { joinRoomApi, type JoinRoomResult } from '../api/room.api';
 import { useAuth } from '../hooks/useAuth';
@@ -61,6 +61,7 @@ const getErrorMessage = (error: AxiosError<ApiErrorBody>): string => {
 
 const JoinRoomPage = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { isAuthenticated } = useAuth();
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token');
@@ -73,6 +74,7 @@ const JoinRoomPage = () => {
     mutationFn: joinRoomApi,
     onSuccess: (data: JoinRoomResult) => {
       // Success: chuyển thẳng vào phòng
+      queryClient.invalidateQueries({ queryKey: ['rooms'] });
       navigate(`/rooms/${data.roomId}`, { replace: true });
     },
     onError: (error: AxiosError<ApiErrorBody>) => {

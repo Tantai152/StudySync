@@ -8,14 +8,12 @@ export const createInvite = async (req: Request, res: Response, next: NextFuncti
 
     const invite = await inviteService.generateInviteLink(roomId, ownerId);
 
-    // Tạo đường link hoàn chỉnh để Frontend có thể copy
-    const inviteLink = `http://localhost:5173/join?token=${invite.token}`;
-
+    // Trả về token; Frontend tự ghép link theo domain đang truy cập (window.location.origin)
     res.status(201).json({
       success: true,
       message: 'Tạo link mời thành công',
       data: {
-        link: inviteLink,
+        token: invite.token,
         expiresAt: invite.expiresAt,
       },
     });

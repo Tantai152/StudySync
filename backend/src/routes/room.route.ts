@@ -3,6 +3,7 @@ import {
   createRoom,
   getMyRooms,
   getMembers,
+  addMember,
   kickMember,
   leaveRoom,
   deleteRoom,
@@ -23,6 +24,7 @@ roomRouter.get('/', getMyRooms);  // GET /api/v1/rooms
 
 // Thành viên phòng
 roomRouter.get('/:id/members', getMembers);                 // GET /api/v1/rooms/:id/members
+roomRouter.post('/:id/members', addMember);                 // POST /api/v1/rooms/:id/members (chủ phòng thêm bạn bè)
 roomRouter.delete('/:id/members/:userId', kickMember);      // DELETE /api/v1/rooms/:id/members/:userId
 roomRouter.delete('/:id/members/me', leaveRoom);            // DELETE /api/v1/rooms/:id/members/me
 roomRouter.delete('/:id', deleteRoom);                      // DELETE /api/v1/rooms/:id (chủ phòng xóa)
