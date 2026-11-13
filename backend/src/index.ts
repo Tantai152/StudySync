@@ -34,8 +34,8 @@ setupSocket(io);
 registerVoiceNamespace(io);
 
 // Chạy server
-server.listen(env.PORT, () => {
-  console.log(`🚀 StudySync API listening on http://localhost:${env.PORT}`);
+server.listen(env.PORT, '0.0.0.0', () => {
+  console.log(`🚀 StudySync API listening on http://0.0.0.0:${env.PORT}`);
   console.log(`   Env: ${env.NODE_ENV}`);
 });
 

@@ -37,8 +37,8 @@ RUN npm ci --omit=dev
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
 
-# Render sẽ tự inject biến PORT
-EXPOSE 3000
+# Render inject PORT động (mặc định 10000)
+EXPOSE 10000
 
 # Chạy app
 CMD ["npm", "run", "start"]
