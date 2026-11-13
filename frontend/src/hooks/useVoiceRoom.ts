@@ -314,9 +314,11 @@ export function useVoiceRoom({ roomId }: { roomId: string }): UseVoiceRoomReturn
       return;
     }
 
-    socketRef.current = io(`http://localhost:3000/voice`, {
+    const socketUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3000';
+    socketRef.current = io(`${socketUrl}/voice`, {
       auth: { token },
       transports: ['websocket', 'polling'],
+      withCredentials: true,
     });
 
     const socket = socketRef.current;
