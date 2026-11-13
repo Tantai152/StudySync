@@ -34,7 +34,7 @@ export const RoomCard = ({ room, currentUserId }: RoomCardProps) => {
       )}
 
       <div className="flex justify-between items-center text-xs text-gray-500 mt-3 pt-3 border-t border-gray-100">
-        <span>ID: {room.id.slice(-6)}</span>
+        <span>ID: {room.id ? room.id.slice(-6) : '??'}</span>
         <span>
           {new Date(room.createdAt).toLocaleDateString('vi-VN')}
         </span>

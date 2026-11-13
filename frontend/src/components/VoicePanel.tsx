@@ -62,7 +62,8 @@ const PhoneOffIcon = ({ className = '' }: { className?: string }) => (
   </svg>
 );
 
-const initialsFrom = (userId: string): string => {
+const initialsFrom = (userId: string | undefined | null): string => {
+  if (!userId) return '??';
   return userId.slice(-2).toUpperCase();
 };
 
@@ -152,7 +153,7 @@ const VoicePanel = ({ roomId }: VoicePanelProps) => {
               {initialsFrom(peer.userId)}
             </div>
             <span className="text-xs text-gray-700 truncate flex-1">
-              {peer.userId.slice(-6)}
+              {peer.userId ? peer.userId.slice(-6) : '??'}
             </span>
             {peer.muted && <MicOffIcon className="text-gray-400" />}
             {!peer.muted && peer.audioStream && (

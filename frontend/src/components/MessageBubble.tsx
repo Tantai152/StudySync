@@ -27,7 +27,7 @@ export const MessageBubble = ({ message, currentUserId }: MessageBubbleProps) =>
       >
         {!isMine && (
           <p className="text-xs text-gray-500 mb-1 font-medium capitalize">
-            {message.senderId.slice(-4)}
+            {message.senderId ? message.senderId.slice(-4) : '??'}
           </p>
         )}
         <p className="whitespace-pre-wrap">{message.content}</p>
