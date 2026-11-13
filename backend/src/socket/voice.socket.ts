@@ -7,8 +7,15 @@ import { markVoiceOffline, markVoiceOnline } from './roomPresence.js';
 
 const MAX_PER_ROOM = 4;
 
-// In-memory state: roomId -> Map<userId, { socketId, muted }>
-const voiceRooms = new Map<string, Map<string, { socketId: string; muted: boolean }>>();
+interface VoiceMember {
+  socketId: string;
+  muted: boolean;
+  name: string;
+  email: string;
+}
+
+// In-memory state: roomId -> Map<userId, VoiceMember>
+const voiceRooms = new Map<string, Map<string, VoiceMember>>();
 
 // Track which room each socket is in (for disconnect cleanup)
 const socketRoomMap = new Map<string, string>(); // socketId -> roomId
@@ -29,7 +36,12 @@ const answerSchema = z.object({
 const iceSchema = z.object({
   roomId: z.string().min(1),
   toUserId: z.string().min(1),
-  candidate: z.string().min(1),
+  // Frontend gửi RTCIceCandidate.toJSON() (object), KHÔNG phải string.
+  // Trước đây schema chỉ nhận string => mọi ICE đều bị drop âm thầm.
+  candidate: z.union([
+    z.string().min(1),
+    z.record(z.string(), z.unknown()),
+  ]),
 });
 const muteSchema = z.object({
   roomId: z.string().min(1),
@@ -39,7 +51,7 @@ const muteSchema = z.object({
 interface ForwardSignalData {
   fromUserId: string;
   sdp?: string;
-  candidate?: string;
+  candidate?: string | Record<string, unknown>;
 }
 
 export function registerVoiceNamespace(io: Server) {
@@ -78,10 +90,16 @@ export function registerVoiceNamespace(io: Server) {
 
       const { roomId } = parse.data;
 
-      // Verify membership
-      const member = await prisma.roomMember.findUnique({
-        where: { roomId_userId: { roomId, userId } },
-      });
+      // Verify membership + lấy thông tin hiển thị cho các peer
+      const [member, userRecord] = await Promise.all([
+        prisma.roomMember.findUnique({
+          where: { roomId_userId: { roomId, userId } },
+        }),
+        prisma.user.findUnique({
+          where: { id: userId },
+          select: { name: true, email: true },
+        }),
+      ]);
       if (!member) {
         socket.emit('voice:error', {
           code: 'NOT_A_MEMBER',
@@ -106,7 +124,12 @@ export function registerVoiceNamespace(io: Server) {
       }
 
       // Join
-      roomMembers.set(userId, { socketId: socket.id, muted: false });
+      roomMembers.set(userId, {
+        socketId: socket.id,
+        muted: false,
+        name: userRecord?.name ?? '',
+        email: userRecord?.email ?? '',
+      });
       socketRoomMap.set(socket.id, roomId);
       socket.join(`voice:${roomId}`);
       markVoiceOnline(roomId, socket.id);
@@ -115,12 +138,20 @@ export function registerVoiceNamespace(io: Server) {
       socket.to(`voice:${roomId}`).emit('voice:peer-joined', {
         userId,
         socketId: socket.id,
+        name: userRecord?.name ?? '',
+        email: userRecord?.email ?? '',
       });
 
       // Send roster to joiner (peers already in room, excluding self)
       const peers = Array.from(roomMembers.entries())
         .filter(([uid]) => uid !== userId)
-        .map(([uid, info]) => ({ userId: uid, muted: info.muted }));
+        .map(([uid, info]) => ({
+          userId: uid,
+          socketId: info.socketId,
+          muted: info.muted,
+          name: info.name,
+          email: info.email,
+        }));
       socket.emit('voice:roster', { members: peers });
 
       console.log(`[voice] ${userId} joined voice room ${roomId}`);

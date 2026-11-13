@@ -62,9 +62,9 @@ const PhoneOffIcon = ({ className = '' }: { className?: string }) => (
   </svg>
 );
 
-const initialsFrom = (userId: string | undefined | null): string => {
-  if (!userId) return '??';
-  return userId.slice(-2).toUpperCase();
+const initialsFrom = (value: string | undefined | null): string => {
+  if (!value) return '??';
+  return value.slice(-2).toUpperCase();
 };
 
 const VoicePanel = ({ roomId }: VoicePanelProps) => {
@@ -133,7 +133,7 @@ const VoicePanel = ({ roomId }: VoicePanelProps) => {
         {/* Self */}
         <div className="flex items-center gap-2 p-2 bg-white border rounded-lg">
           <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 text-xs font-bold">
-            {initialsFrom(currentUserId)}
+            {initialsFrom(user?.name || currentUserId)}
           </div>
           <span className="text-xs text-gray-700 truncate flex-1">Bạn</span>
           {isMuted ? (
@@ -150,10 +150,10 @@ const VoicePanel = ({ roomId }: VoicePanelProps) => {
             className="flex items-center gap-2 p-2 bg-white border rounded-lg"
           >
             <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-700 text-xs font-bold">
-              {initialsFrom(peer.userId)}
+              {initialsFrom(peer.name || peer.userId)}
             </div>
             <span className="text-xs text-gray-700 truncate flex-1">
-              {peer.userId ? peer.userId.slice(-6) : '??'}
+              {peer.name || (peer.userId ? peer.userId.slice(-6) : '??')}
             </span>
             {peer.muted && <MicOffIcon className="text-gray-400" />}
             {!peer.muted && peer.audioStream && (
@@ -225,6 +225,10 @@ const VoicePanel = ({ roomId }: VoicePanelProps) => {
         ref={(el) => {
           if (el && peer.audioStream) {
             el.srcObject = peer.audioStream;
+            // Autoplay có thể bị chặn; thử play() và bỏ qua lỗi.
+            void el.play().catch(() => {
+              /* user cần bấm vào trang để bật âm thanh */
+            });
             audioRefs.current.set(peer.userId, el);
           }
         }}

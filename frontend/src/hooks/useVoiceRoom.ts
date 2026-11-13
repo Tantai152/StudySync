@@ -26,10 +26,29 @@ type VoiceState = 'idle' | 'requesting-mic' | 'connecting' | 'connected' | 'erro
 
 interface PeerInfo {
   userId: string;
+  name?: string;
+  email?: string;
   audioStream?: MediaStream;
   muted: boolean;
   iceState: string;
 }
+
+interface RosterMember {
+  userId: string;
+  socketId?: string;
+  name?: string;
+  email?: string;
+  muted: boolean;
+}
+
+/** Backend gửi `{ members: [...] }`; chấp nhận cả array trần để chống lệch shape. */
+const normalizeRoster = (
+  payload: RosterMember[] | { members?: RosterMember[] } | null | undefined
+): RosterMember[] => {
+  if (Array.isArray(payload)) return payload;
+  if (payload && Array.isArray(payload.members)) return payload.members;
+  return [];
+};
 
 interface UseVoiceRoomReturn {
   state: VoiceState;
@@ -50,6 +69,8 @@ export function useVoiceRoom({ roomId }: { roomId: string }): UseVoiceRoomReturn
   const socketRef = useRef<Socket | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const peerConnectionsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
+  // ICE đến trước remoteDescription sẽ lỗi => xếp hàng chờ.
+  const pendingIceRef = useRef<Map<string, RTCIceCandidateInit[]>>(new Map());
   const stateRef = useRef<VoiceState>('idle');
   const isUserInitiatedLeave = useRef(false);
 
@@ -66,6 +87,10 @@ export function useVoiceRoom({ roomId }: { roomId: string }): UseVoiceRoomReturn
 
   const createPeerConnection = useCallback(
     (peerUserId: string): RTCPeerConnection => {
+      // Tái sử dụng connection đã có, tránh tạo trùng khi roster tới nhiều lần.
+      const existing = peerConnectionsRef.current.get(peerUserId);
+      if (existing) return existing;
+
       const pc = new RTCPeerConnection(ICE_SERVERS);
 
       localStreamRef.current?.getTracks().forEach((track) => {
@@ -77,7 +102,9 @@ export function useVoiceRoom({ roomId }: { roomId: string }): UseVoiceRoomReturn
           socketRef.current?.emit('voice:ice', {
             roomId,
             toUserId: peerUserId,
-            candidate: event.candidate,
+            // Gửi dạng plain object; backend schema trước đây chỉ nhận string
+            // nên mọi candidate đều bị drop.
+            candidate: event.candidate.toJSON(),
           });
         }
       };
@@ -129,8 +156,26 @@ export function useVoiceRoom({ roomId }: { roomId: string }): UseVoiceRoomReturn
       pc.close();
       peerConnectionsRef.current.delete(peerUserId);
     }
+    pendingIceRef.current.delete(peerUserId);
     setPeers((prev) => prev.filter((p) => p.userId !== peerUserId));
   }, []);
+
+  /** Thêm các ICE đã xếp hàng sau khi remoteDescription đã sẵn sàng. */
+  const flushPendingIce = useCallback(
+    async (peerUserId: string, pc: RTCPeerConnection) => {
+      const queued = pendingIceRef.current.get(peerUserId);
+      if (!queued?.length) return;
+      pendingIceRef.current.delete(peerUserId);
+      for (const candidate of queued) {
+        try {
+          await pc.addIceCandidate(new RTCIceCandidate(candidate));
+        } catch (err) {
+          console.warn('[voice] addIceCandidate (queued) lỗi', err);
+        }
+      }
+    },
+    []
+  );
 
   /**
    * Gửi 1 đoạn audio lên backend để Groq Whisper chuyển thành text.
@@ -264,18 +309,20 @@ export function useVoiceRoom({ roomId }: { roomId: string }): UseVoiceRoomReturn
     if (!stream) return;
     const audioTrack = stream.getAudioTracks()[0];
     if (!audioTrack) return;
-    const newMuted = !audioTrack.enabled;
-    audioTrack.enabled = newMuted; // Đảo trạng thái track (sửa lỗi: trước đây gán lại giá trị cũ => không đổi)
-    setIsMuted(newMuted);
+    // `muted` = mic tắt. track.enabled = true nghĩa là đang phát âm.
+    // Đang bật (enabled) => lần bấm này sẽ mute => nextMuted = true.
+    const nextMuted = audioTrack.enabled;
+    audioTrack.enabled = !nextMuted;
+    setIsMuted(nextMuted);
 
     // Tắt mic -> ngừng thu âm; bật lại -> thu tiếp.
-    if (newMuted) {
+    if (nextMuted) {
       stopRecording();
     } else {
       startRecording();
     }
 
-    socketRef.current?.emit('voice:mute', { roomId, muted: newMuted });
+    socketRef.current?.emit('voice:mute', { roomId, muted: nextMuted });
   }, [roomId, startRecording, stopRecording]);
 
   const join = useCallback(async () => {
@@ -334,21 +381,28 @@ export function useVoiceRoom({ roomId }: { roomId: string }): UseVoiceRoomReturn
 
     socket.on(
       'voice:roster',
-      (members: { userId: string; muted: boolean }[]) => {
+      (payload: RosterMember[] | { members?: RosterMember[] } | null) => {
         setState('connected');
 
-        // SAFETY: Socket.io có thể trả về undefined/null hoặc object thay vì array
-        const memberList: { userId: string; muted: boolean }[] = Array.isArray(members)
-          ? members
-          : Object.values(members || {}) as { userId: string; muted: boolean }[];
-        memberList.forEach(({ userId: peerUserId, muted }) => {
+        const memberList = normalizeRoster(payload);
+        memberList.forEach((member) => {
+          const { userId: peerUserId, muted } = member;
+          if (!peerUserId) return; // bỏ qua entry hỏng thay vì tạo peer "??"
           setPeers((prev) => {
             if (prev.some((p) => p.userId === peerUserId)) return prev;
             return [
               ...prev,
-              { userId: peerUserId, muted, iceState: 'connecting' },
+              {
+                userId: peerUserId,
+                name: member.name,
+                email: member.email,
+                muted,
+                iceState: 'connecting',
+              },
             ];
           });
+          // Nếu đã có connection (roster lặp) thì không tạo offer lần nữa.
+          if (peerConnectionsRef.current.has(peerUserId)) return;
           const pc = createPeerConnection(peerUserId);
           pc.createOffer()
             .then((offer) => pc.setLocalDescription(offer))
@@ -361,6 +415,9 @@ export function useVoiceRoom({ roomId }: { roomId: string }): UseVoiceRoomReturn
                   sdp,
                 });
               }
+            })
+            .catch((err) => {
+              console.error('[voice] createOffer lỗi', err);
             });
         });
       }
@@ -368,46 +425,73 @@ export function useVoiceRoom({ roomId }: { roomId: string }): UseVoiceRoomReturn
 
     socket.on(
       'voice:peer-joined',
-      ({ userId: peerUserId }: { userId: string }) => {
+      ({
+        userId: peerUserId,
+        name,
+        email,
+      }: {
+        userId: string;
+        name?: string;
+        email?: string;
+      }) => {
+        if (!peerUserId) return;
         setState('connected');
         setPeers((prev) => {
           if (prev.some((p) => p.userId === peerUserId)) return prev;
           return [
             ...prev,
-            { userId: peerUserId, muted: false, iceState: 'connecting' },
+            {
+              userId: peerUserId,
+              name,
+              email,
+              muted: false,
+              iceState: 'connecting',
+            },
           ];
         });
+        // Peer mới sẽ gửi offer cho mình; không tạo offer ở đây để tránh glare.
       }
     );
 
     socket.on(
       'voice:offer',
       async ({ fromUserId, sdp }: { fromUserId: string; sdp: string }) => {
-        let pc = peerConnectionsRef.current.get(fromUserId);
-        if (!pc) {
-          pc = createPeerConnection(fromUserId);
+        console.log('[voice] Received Offer', { fromUserId });
+        try {
+          let pc = peerConnectionsRef.current.get(fromUserId);
+          if (!pc) {
+            pc = createPeerConnection(fromUserId);
+          }
+          await pc.setRemoteDescription(
+            new RTCSessionDescription({ type: 'offer', sdp })
+          );
+          await flushPendingIce(fromUserId, pc);
+          const answer = await pc.createAnswer();
+          await pc.setLocalDescription(answer);
+          socket.emit('voice:answer', {
+            roomId,
+            toUserId: fromUserId,
+            sdp: answer.sdp!,
+          });
+        } catch (err) {
+          console.error('[voice] xử lý offer lỗi', err);
         }
-        await pc.setRemoteDescription(
-          new RTCSessionDescription({ type: 'offer', sdp })
-        );
-        const answer = await pc.createAnswer();
-        await pc.setLocalDescription(answer);
-        socket.emit('voice:answer', {
-          roomId,
-          toUserId: fromUserId,
-          sdp: answer.sdp!,
-        });
       }
     );
 
     socket.on(
       'voice:answer',
-      ({ fromUserId, sdp }: { fromUserId: string; sdp: string }) => {
+      async ({ fromUserId, sdp }: { fromUserId: string; sdp: string }) => {
+        console.log('[voice] Received Answer', { fromUserId });
         const pc = peerConnectionsRef.current.get(fromUserId);
-        if (pc) {
-          pc.setRemoteDescription(
+        if (!pc) return;
+        try {
+          await pc.setRemoteDescription(
             new RTCSessionDescription({ type: 'answer', sdp })
           );
+          await flushPendingIce(fromUserId, pc);
+        } catch (err) {
+          console.error('[voice] xử lý answer lỗi', err);
         }
       }
     );
@@ -422,9 +506,16 @@ export function useVoiceRoom({ roomId }: { roomId: string }): UseVoiceRoomReturn
         candidate: RTCIceCandidateInit;
       }) => {
         const pc = peerConnectionsRef.current.get(fromUserId);
-        if (pc) {
-          pc.addIceCandidate(new RTCIceCandidate(candidate));
+        // Chưa có pc hoặc chưa có remoteDescription => xếp hàng.
+        if (!pc || !pc.remoteDescription) {
+          const queue = pendingIceRef.current.get(fromUserId) ?? [];
+          queue.push(candidate);
+          pendingIceRef.current.set(fromUserId, queue);
+          return;
         }
+        pc.addIceCandidate(new RTCIceCandidate(candidate)).catch((err) => {
+          console.warn('[voice] addIceCandidate lỗi', err);
+        });
       }
     );
 
@@ -485,6 +576,7 @@ export function useVoiceRoom({ roomId }: { roomId: string }): UseVoiceRoomReturn
     roomId,
     createPeerConnection,
     cleanupPeer,
+    flushPendingIce,
   ]);
 
   const leaveVoice = useCallback(() => {
