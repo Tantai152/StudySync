@@ -1,6 +1,8 @@
   import express from 'express';
   import cors from 'cors';
   import helmet from 'helmet';
+  import swaggerUi from 'swagger-ui-express';
+  import swaggerJSDoc from 'swagger-jsdoc';
   import { env } from './config/env.js';
   import { healthRouter } from './routes/health.route.js';
   import { authRouter } from './routes/auth.route.js';
@@ -11,6 +13,7 @@
   import { inviteRouter } from './routes/invite.route.js';
   import { dashboardRouter } from './routes/dashboard.route.js';
   import { userRouter } from './routes/user.route.js';
+  import { swaggerOptions } from './config/swagger.js';
 
   export function createApp() {
     const app = express();
@@ -29,6 +32,10 @@
     app.use('/api/v1/rooms', roomRouter);
     app.use('/api/v1/rooms', inviteRouter);
     app.use('/api/v1/dashboard', dashboardRouter);
+
+    // Mount Swagger UI TRƯỚC catch-all 404 để /api-docs không bị chặn bởi handler Not found
+    const swaggerSpec = swaggerJSDoc(swaggerOptions);
+    app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
     app.use((_req, res) => {
       res.status(404).json({
