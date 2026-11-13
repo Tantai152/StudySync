@@ -265,7 +265,7 @@ export function useVoiceRoom({ roomId }: { roomId: string }): UseVoiceRoomReturn
     const audioTrack = stream.getAudioTracks()[0];
     if (!audioTrack) return;
     const newMuted = !audioTrack.enabled;
-    audioTrack.enabled = !newMuted;
+    audioTrack.enabled = newMuted; // Đảo trạng thái track (sửa lỗi: trước đây gán lại giá trị cũ => không đổi)
     setIsMuted(newMuted);
 
     // Tắt mic -> ngừng thu âm; bật lại -> thu tiếp.
@@ -337,7 +337,11 @@ export function useVoiceRoom({ roomId }: { roomId: string }): UseVoiceRoomReturn
       (members: { userId: string; muted: boolean }[]) => {
         setState('connected');
 
-        members.forEach(({ userId: peerUserId, muted }) => {
+        // SAFETY: Socket.io có thể trả về undefined/null hoặc object thay vì array
+        const memberList: { userId: string; muted: boolean }[] = Array.isArray(members)
+          ? members
+          : Object.values(members || {}) as { userId: string; muted: boolean }[];
+        memberList.forEach(({ userId: peerUserId, muted }) => {
           setPeers((prev) => {
             if (prev.some((p) => p.userId === peerUserId)) return prev;
             return [
@@ -543,7 +547,7 @@ export function useVoiceRoom({ roomId }: { roomId: string }): UseVoiceRoomReturn
     return () => {
       stopRecording();
       if (stateRef.current === 'connected' || stateRef.current === 'connecting') {
-        localStream?.getTracks().forEach((track) => track.stop());
+        localStream?.getTracks()?.forEach((track) => track.stop());
         peerConnections.forEach((pc) => pc.close());
         if (socket) {
           socket.disconnect();
