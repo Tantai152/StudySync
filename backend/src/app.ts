@@ -3,7 +3,7 @@
   import helmet from 'helmet';
   import swaggerUi from 'swagger-ui-express';
   import swaggerJSDoc from 'swagger-jsdoc';
-  import { env } from './config/env.js';
+  import { corsOptions } from './config/cors.js';
   import { healthRouter } from './routes/health.route.js';
   import { authRouter } from './routes/auth.route.js';
   import { adminRouter } from './routes/admin.route.js';
@@ -21,7 +21,7 @@
     app.use(helmet());
     app.use(cookieParser());
 
-    app.use(cors({ origin: env.FRONTEND_URL, credentials: true }));
+    app.use(cors(corsOptions));
     app.use(express.json({ limit: '100kb' }));
 
     app.use('/api/v1/health', healthRouter);

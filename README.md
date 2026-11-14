@@ -105,7 +105,7 @@ Swagger UI is available in both local and production environments:
 - **ICE:** Early ICE candidates are queued via `pendingIceRef` to prevent signaling errors.
 
 ## Deployment
-- **Frontend:** Vercel (https://study-sync-gilt-ten.vercel.app)
+- **Frontend:** https://studywithme.io.vn (custom domain, Vercel)
 - **Backend:** Render (https://studysync-iysw.onrender.com)
 - **CI/CD:** GitHub Actions (Playwright E2E + Lint/Build)
 

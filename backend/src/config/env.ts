@@ -13,10 +13,17 @@ const envSchema = z.object({
   FRONTEND_URL: z
     .string()
     .default('http://localhost:5173')
+    .refine((val) => val.split(',').every((origin) => /^https?:\/\/[^\s/]+$/.test(origin.trim())), {
+      message:
+        'FRONTEND_URL phải là danh sách origin (phân tách bằng dấu phẩy), ví dụ https://studywithme.io.vn',
+    })
     .refine(
       (val) => {
         if (process.env.NODE_ENV === 'production') {
-          return val !== 'http://localhost:5173';
+          return val
+            .split(',')
+            .map((origin) => origin.trim())
+            .every((origin) => !/^https?:\/\/localhost(:\d+)?$/.test(origin));
         }
         return true;
       },

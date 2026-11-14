@@ -2,6 +2,7 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import { createApp } from './app.js';
 import { env } from './config/env.js';
+import { corsOptions } from './config/cors.js';
 import { setupSocket } from './sockets/socket.js';
 import { registerVoiceNamespace } from './socket/voice.socket.js';
 
@@ -12,10 +13,7 @@ const server = createServer(app);
 
 // Khởi tạo Socket.IO và cấu hình CORS
 const io = new Server(server, {
-  cors: {
-    origin: env.FRONTEND_URL,
-    credentials: true,
-  },
+  cors: corsOptions,
   pingTimeout: 60000,
   pingInterval: 25000,
 });
