@@ -45,18 +45,21 @@ export const getRoomsApi = async (): Promise<RoomItem[]> => {
   return response.data.data;
 };
 
+// Phiên học đang ACTIVE của một thành viên (dùng cho danh sách thành viên phòng)
+export interface RoomMemberActiveSession {
+  goal: string | null;
+  duration: number;
+  lastResumedAt: string | null;
+  startedAt: string;
+}
+
 // Thông tin thành viên phòng trả về từ API
 export interface RoomMemberItem {
-  id: string;
-  roomId: string;
-  userId: string;
+  id: string; // userId
+  name: string;
+  avatarUrl: string | null;
   role: 'OWNER' | 'MEMBER';
-  joinedAt: string;
-  user: {
-    id: string;
-    email: string;
-    name: string;
-  };
+  activeSession: RoomMemberActiveSession | null;
 }
 
 // Gọi API lấy danh sách thành viên phòng

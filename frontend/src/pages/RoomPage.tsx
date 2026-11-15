@@ -15,6 +15,9 @@ import { useToast } from '../components/ToastContext';
 import StudyTimer from '../components/StudyTimer';
 import VoicePanel from '../components/VoicePanel';
 import InviteFriendsModal from '../components/InviteFriendsModal';
+import { RoomMembersPanel } from '../components/RoomMembersPanel';
+import { MessageBubble } from '../components/MessageBubble';
+import type { MessageItem } from '../api/message.api';
 
 // Icon mời bạn bè
 const UserPlusIcon = ({ className = '' }: { className?: string }) => (
@@ -24,14 +27,6 @@ const UserPlusIcon = ({ className = '' }: { className?: string }) => (
     <polyline points="16 11 12 17 8 11" />
   </svg>
 );
-
-interface Message {
-  id: string;
-  clientId: string | null;
-  content: string;
-  senderId: string;
-  createdAt: string;
-}
 
 const RoomPage = () => {
   const { roomId } = useParams<{ roomId: string }>();
@@ -98,7 +93,7 @@ const RoomPage = () => {
   });
 
   const isOwner = members.some(
-    (m) => m.userId === currentUserId && m.role === 'OWNER'
+    (m) => m.id === currentUserId && m.role === 'OWNER'
   );
 
   // 2. Trích xuất userId từ Token
@@ -123,7 +118,7 @@ const RoomPage = () => {
   }, [friendsData]);
 
   // 3. Lấy lịch sử chat
-  const { data: messages = [], isLoading: isLoadingMessages } = useQuery<Message[]>({
+  const { data: messages = [], isLoading: isLoadingMessages } = useQuery<MessageItem[]>({
     queryKey: ['messages', roomId],
     queryFn: () => getMessagesApi(roomId!),
     enabled: !!roomId && !!currentUserId, 
@@ -140,8 +135,8 @@ const RoomPage = () => {
 
     const handleDisconnect = () => setIsConnected(false);
 
-    const handleNewMessage = (newMessage: Message) => {
-      queryClient.setQueryData(['messages', roomId], (oldMessages: Message[] | undefined) => {
+    const handleNewMessage = (newMessage: MessageItem) => {
+      queryClient.setQueryData(['messages', roomId], (oldMessages: MessageItem[] | undefined) => {
         if (!oldMessages) return [newMessage];
         const isDuplicate = oldMessages.some(m => m.id === newMessage.id || (m.clientId && m.clientId === newMessage.clientId));
         if (isDuplicate) return oldMessages;
@@ -206,8 +201,10 @@ const RoomPage = () => {
       queryClient.invalidateQueries({ queryKey: ['roomMembers', roomId] });
       setSettingsOpen(false);
       navigate('/');
-    } catch {
-      showToast('Không thể rời phòng. Vui lòng thử lại.', 'error');
+    } catch (error) {
+      const message = (error as { response?: { data?: { message?: string } } })
+        ?.response?.data?.message;
+      showToast(message || 'Không thể rời phòng. Vui lòng thử lại.', 'error');
     }
   };
 
@@ -286,21 +283,9 @@ const RoomPage = () => {
               <p className="text-center text-gray-500 mt-10">Chưa có tin nhắn nào. Hãy bắt đầu trò chuyện!</p>
             )}
 
-            {messages.map((msg) => {
-              const isMe = msg.senderId === currentUserId;
-              return (
-                <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[70%] p-3 rounded-2xl shadow-sm ${
-                    isMe ? 'bg-blue-500 text-white rounded-br-none' : 'bg-white text-gray-800 border rounded-bl-none'
-                  }`}>
-                    <p className="break-words">{msg.content}</p>
-                    <span className={`text-[10px] block mt-1 ${isMe ? 'text-blue-100 text-right' : 'text-gray-400 text-left'}`}>
-                      {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
+            {messages.map((msg) => (
+              <MessageBubble key={msg.id} message={msg} currentUserId={currentUserId} />
+            ))}
             <div ref={messagesEndRef} />
           </div>
 
@@ -324,10 +309,17 @@ const RoomPage = () => {
 
         {/* SIDEBAR */}
         {roomId && (
-          <div className="w-72 border-l bg-gray-50 flex flex-col">
+          <div className="w-72 border-l bg-gray-50 flex flex-col overflow-y-auto">
             {/* ĐÃ THÊM prop socket={socket} VÀO DƯỚI ĐÂY */}
             <StudyTimer roomId={roomId} socket={socket} />
             <VoicePanel roomId={roomId} />
+
+            {/* Danh sách toàn bộ thành viên + phiên học đang ACTIVE */}
+            <RoomMembersPanel
+              roomId={roomId}
+              currentUserId={currentUserId}
+              socket={socket}
+            />
 
             {/* Nút xem tóm tắt */}
             <button

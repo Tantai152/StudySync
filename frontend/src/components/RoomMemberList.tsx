@@ -24,8 +24,8 @@ export const RoomMemberList = ({
   const [confirmKickUserName, setConfirmKickUserName] = useState('');
 
   const handleConfirmKick = (member: RoomMemberItem) => {
-    setConfirmKickUserId(member.userId);
-    setConfirmKickUserName(member.user.name);
+    setConfirmKickUserId(member.id);
+    setConfirmKickUserName(member.name);
   };
 
   const handleCancelKick = () => {
@@ -56,24 +56,26 @@ export const RoomMemberList = ({
 
       <div className="divide-y divide-gray-200 rounded-lg border border-gray-200 bg-white">
         {members.map((member) => {
-          const isCurrentUser = member.userId === currentUserId;
+          const isCurrentUser = member.id === currentUserId;
           const memberIsOwner = member.role === 'OWNER';
           const canKick = isOwner && !isCurrentUser;
 
           return (
             <div
-              key={member.userId}
+              key={member.id}
               className="flex items-center justify-between px-4 py-3"
             >
               <div className="flex items-center space-x-3">
                 <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 font-medium text-sm">
-                  {member.user.name.charAt(0).toUpperCase()}
+                  {member.name.charAt(0).toUpperCase()}
                 </div>
                 <div>
                   <p className="text-sm font-medium text-gray-900">
-                    {member.user.name}
+                    {member.name}
                   </p>
-                  <p className="text-xs text-gray-500">{member.user.email}</p>
+                  <p className="text-xs text-gray-500">
+                    {member.activeSession ? 'Đang học' : 'Đang rảnh'}
+                  </p>
                 </div>
               </div>
 

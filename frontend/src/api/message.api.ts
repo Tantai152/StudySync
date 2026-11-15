@@ -1,11 +1,17 @@
 import api from '../lib/axios';
 
+export interface MessageSender {
+  name: string;
+  avatarUrl: string | null;
+}
+
 export interface MessageItem {
   id: string;
-  clientId?: string;
+  clientId?: string | null;
   content: string;
   roomId: string;
   senderId: string;
+  sender: MessageSender;
   createdAt: string;
 }
 
