@@ -56,7 +56,7 @@ interface UseVoiceRoomReturn {
   error: string | null;
   isMuted: boolean;
   join: () => Promise<void>;
-  leaveVoice: () => void;
+  leaveVoice: () => Promise<void>;
   toggleMute: () => void;
 }
 
@@ -81,6 +81,10 @@ export function useVoiceRoom({ roomId }: { roomId: string }): UseVoiceRoomReturn
   const isMutedRef = useRef(false);
   const discardCurrentSegmentRef = useRef(false);
   const startRecordingRef = useRef<() => void>(() => {});
+  // Promise của lần upload gần nhất (dùng để await chunk cuối khi rời phòng).
+  const lastUploadPromiseRef = useRef<Promise<void> | null>(null);
+  // Resolver cho stopRecording: được gọi khi onstop của recorder chạy xong.
+  const stopResolveRef = useRef<(() => void) | null>(null);
 
   stateRef.current = state;
   isMutedRef.current = isMuted;
@@ -245,18 +249,28 @@ export function useVoiceRoom({ roomId }: { roomId: string }): UseVoiceRoomReturn
         segmentTimerRef.current = null;
       }
 
-      const shouldSend =
-        isRecordingRef.current && !discardCurrentSegmentRef.current;
+      // Gửi đoạn audio vừa thu (kể cả đoạn cuối khi rời phòng).
+      // Chỉ bỏ khi bị đánh dấu discard rõ ràng.
+      const shouldSend = !discardCurrentSegmentRef.current && chunks.length > 0;
       discardCurrentSegmentRef.current = false;
 
-      if (shouldSend && chunks.length > 0) {
+      let uploadPromise: Promise<void> = Promise.resolve();
+      if (shouldSend) {
         const blob = new Blob(chunks, {
           type: recorder.mimeType || 'audio/webm',
         });
-        void sendAudioChunk(blob);
+        uploadPromise = sendAudioChunk(blob);
+        lastUploadPromiseRef.current = uploadPromise;
       }
 
-      // Thu tiếp đoạn kế tiếp nếu phiên voice vẫn đang hoạt động.
+      // Nếu stopRecording() đang chờ, giải phóng nó sau khi upload hoàn tất.
+      if (stopResolveRef.current) {
+        const resolveStop = stopResolveRef.current;
+        stopResolveRef.current = null;
+        uploadPromise.then(resolveStop, resolveStop);
+      }
+
+      // Thu tiếp đoạn kế tiếp chỉ khi vẫn còn trong phiên ghi âm.
       if (isRecordingRef.current) {
         startRecordingRef.current();
       }
@@ -275,9 +289,10 @@ export function useVoiceRoom({ roomId }: { roomId: string }): UseVoiceRoomReturn
 
   /**
    * Dừng thu âm (khi mute, leave hoặc mất kết nối).
-   * Đoạn audio dở dang bị bỏ, không gửi lên server.
+   * Trả về Promise resolve sau khi đoạn audio cuối được gửi xong (hoặc ngay
+   * nếu không còn gì để gửi) — để leaveVoice() chờ trước khi ngắt socket.
    */
-  const stopRecording = useCallback(() => {
+  const stopRecording = useCallback((): Promise<void> => {
     isRecordingRef.current = false;
 
     if (segmentTimerRef.current) {
@@ -286,12 +301,16 @@ export function useVoiceRoom({ roomId }: { roomId: string }): UseVoiceRoomReturn
     }
 
     const recorder = mediaRecorderRef.current;
-    if (recorder && recorder.state !== 'inactive') {
-      discardCurrentSegmentRef.current = true;
-      recorder.stop();
-    } else {
+    if (!recorder || recorder.state === 'inactive') {
       mediaRecorderRef.current = null;
+      return lastUploadPromiseRef.current ?? Promise.resolve();
     }
+
+    // Giữ lại đoạn audio cuối: không set discardCurrentSegmentRef = true.
+    return new Promise<void>((resolve) => {
+      stopResolveRef.current = resolve;
+      recorder.stop();
+    });
   }, []);
 
   // Tự động thu âm khi đã vào phòng voice, dừng khi rời/mất kết nối.
@@ -579,12 +598,21 @@ export function useVoiceRoom({ roomId }: { roomId: string }): UseVoiceRoomReturn
     flushPendingIce,
   ]);
 
-  const leaveVoice = useCallback(() => {
+  const leaveVoice = useCallback(async () => {
     console.log('[voice-debug] leaveVoice called');
     isUserInitiatedLeave.current = true;
 
-    // Dừng thu âm STT trước khi tắt micro
-    stopRecording();
+    // Dừng thu âm STT và chờ đoạn audio cuối được gửi xong (tối đa 3s).
+    // Việc này giữ stream sống để MediaRecorder kịp flush dữ liệu cuối,
+    // đồng thời tránh backend đếm giờ summary khi upload còn đang bay.
+    try {
+      await Promise.race([
+        stopRecording(),
+        new Promise<void>((resolve) => setTimeout(resolve, 3000)),
+      ]);
+    } catch (err) {
+      console.warn('[voice] Lỗi khi chờ gửi đoạn audio cuối', err);
+    }
 
     // Stop local tracks
     localStreamRef.current?.getTracks().forEach((track) => track.stop());

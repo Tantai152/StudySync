@@ -37,42 +37,11 @@ const formatTime = (totalSeconds: number): string => {
   return `${m}:${s.toString().padStart(2, '0')}`;
 };
 
-// --- COMPONENT MỚI: Để đếm giây cho người khác ---
-const OtherUserTimer = ({ session }: { session: StudySessionDTO }) => {
-  const [elapsed, setElapsed] = useState(computeElapsed(session));
-
-  useEffect(() => {
-    setElapsed(computeElapsed(session)); // Cập nhật lại base time khi có data mới
-    if (session.status !== 'ACTIVE') return;
-
-    const interval = setInterval(() => {
-      setElapsed((prev) => prev + 1);
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [session]);
-
-  return (
-    <div className="flex items-center justify-between bg-white border p-2 rounded-lg shadow-sm">
-      <div className="flex flex-col overflow-hidden">
-        <span className="text-xs text-gray-700 truncate max-w-[120px]">
-          {session.goal || 'Không có mục tiêu'}
-        </span>
-        <span className="text-sm font-bold text-gray-800 font-mono">
-          {formatTime(elapsed)}
-        </span>
-      </div>
-      <span className={`text-[10px] px-2 py-1 rounded-full font-bold ${session.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-        {session.status === 'ACTIVE' ? 'Focus' : 'Break'}
-      </span>
-    </div>
-  );
-};
+// --- COMPONENT: đếm giây hiển thị tiến trình phiên học ---
 
 const StudyTimer = ({ roomId, socket }: StudyTimerProps) => {
   const queryClient = useQueryClient();
   const [goalInput, setGoalInput] = useState('');
-  const [otherSessions, setOtherSessions] = useState<Record<string, StudySessionDTO>>({});
 
   const { data: session, isLoading } = useQuery<StudySessionDTO | null>({
     queryKey: ['study-session', 'current', roomId],
@@ -106,25 +75,6 @@ const StudyTimer = ({ roomId, socket }: StudyTimerProps) => {
       }
     };
   }, [session?.status]);
-
-  useEffect(() => {
-    if (!socket) return;
-    const handleUserStatus = (data: StudySessionDTO) => {
-      setOtherSessions((prev) => {
-        const newState = { ...prev };
-        if (data.status === 'COMPLETED') {
-          delete newState[data.userId];
-        } else {
-          newState[data.userId] = data;
-        }
-        return newState;
-      });
-    };
-    socket.on('study:user_status', handleUserStatus);
-    return () => {
-      socket.off('study:user_status', handleUserStatus);
-    };
-  }, [socket]);
 
   const startMutation = useMutation({
     mutationFn: () => startSessionApi(roomId, goalInput.trim() || undefined),
@@ -166,7 +116,7 @@ const StudyTimer = ({ roomId, socket }: StudyTimerProps) => {
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col">
       {/* PHẦN TIMER CỦA MÌNH */}
       {!session ? (
         <div className="p-4 space-y-3">
@@ -211,17 +161,7 @@ const StudyTimer = ({ roomId, socket }: StudyTimerProps) => {
         </div>
       )}
 
-      {/* HIỂN THỊ TRẠNG THÁI CỦA NGƯỜI KHÁC (Đã có đồng hồ đếm giây) */}
-      {Object.values(otherSessions).length > 0 && (
-        <div className="mt-auto p-4 border-t bg-gray-50">
-          <h3 className="text-xs font-bold text-gray-500 mb-2 uppercase tracking-wider">Mọi người đang học:</h3>
-          <div className="space-y-2">
-            {Object.values(otherSessions).map((s) => (
-              <OtherUserTimer key={s.id} session={s} />
-            ))}
-          </div>
-        </div>
-      )}
+      {/* Trạng thái thành viên đã được tách sang component RoomMembersPanel */}
     </div>
   );
 };
