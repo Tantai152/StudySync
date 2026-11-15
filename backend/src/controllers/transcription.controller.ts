@@ -63,7 +63,7 @@ const resolveFileName = (originalName: string, mimetype: string): string => {
  *                 minLength: 2
  *                 maxLength: 5
  *                 example: 'vi'
- *                 description: Mã ngôn ngữ (mặc định: vi)
+ *                 description: 'Mã ngôn ngữ (mặc định: vi)'
  *     responses:
  *       201:
  *         description: Chuyển đổi thành công
