@@ -25,8 +25,10 @@ roomRouter.get('/', getMyRooms);  // GET /api/v1/rooms
 // Thành viên phòng
 roomRouter.get('/:id/members', getMembers);                 // GET /api/v1/rooms/:id/members
 roomRouter.post('/:id/members', addMember);                 // POST /api/v1/rooms/:id/members (chủ phòng thêm bạn bè)
-roomRouter.delete('/:id/members/:userId', kickMember);      // DELETE /api/v1/rooms/:id/members/:userId
+// QUAN TRỌNG: `/:id/members/me` phải khai báo TRƯỚC `/:id/members/:userId`,
+// nếu không Express sẽ khớp "me" thành :userId và gọi nhầm kickMember.
 roomRouter.delete('/:id/members/me', leaveRoom);            // DELETE /api/v1/rooms/:id/members/me
+roomRouter.delete('/:id/members/:userId', kickMember);      // DELETE /api/v1/rooms/:id/members/:userId
 roomRouter.delete('/:id', deleteRoom);                      // DELETE /api/v1/rooms/:id (chủ phòng xóa)
 
 // Tin nhắn (mount vào roomRouter)
