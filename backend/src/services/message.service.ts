@@ -34,6 +34,10 @@ export const getMessages = async (
     cursor: cursor ? { id: cursor } : undefined,
     skip: cursor ? 1 : 0,
     take: limit,
+    // Kèm thông tin người gửi để frontend hiển thị tên + avatar.
+    include: {
+      sender: { select: { name: true, avatarUrl: true } },
+    },
   });
 
   return messages.map((m) => ({
@@ -43,6 +47,7 @@ export const getMessages = async (
     roomId: m.roomId,
     senderId: m.senderId,
     createdAt: m.createdAt,
+    sender: m.sender,
   }));
 };
 
@@ -80,6 +85,10 @@ export const createMessage = async (
       senderId: userId,
       ...(clientId ? { clientId } : {}),
     },
+    // Trả kèm sender để payload socket `chat:new_message` có tên + avatar.
+    include: {
+      sender: { select: { name: true, avatarUrl: true } },
+    },
   });
 
   return {
@@ -89,5 +98,6 @@ export const createMessage = async (
     roomId: message.roomId,
     senderId: message.senderId,
     createdAt: message.createdAt,
+    sender: message.sender,
   };
 };

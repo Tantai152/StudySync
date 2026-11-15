@@ -1,7 +1,9 @@
 import { processRoomSummary } from '../services/summary.service.js';
 
 // Phòng được coi là vắng khi không còn socket chat lẫn voice nào.
-const ROOM_EMPTY_TIMEOUT_MS = 2 * 60 * 1000; // 2 phút
+// 5 phút: tạo buffer an toàn để các request upload audio (file lớn / mạng chậm)
+// kịp lưu vào DB trước khi AI Summary được trigger, tránh race condition.
+const ROOM_EMPTY_TIMEOUT_MS = 5 * 60 * 1000; // 5 phút
 
 // roomId -> set socketId đang ở trong phòng (chat)
 const chatPresence = new Map<string, Set<string>>();

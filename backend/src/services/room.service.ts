@@ -50,18 +50,49 @@ export const getRoomMembers = async (roomId: string, requesterId: string) => {
   // Lấy danh sách thành viên kèm thông tin User
   const members = await prisma.roomMember.findMany({
     where: { roomId },
-    include: { user: { select: { id: true, email: true, name: true } } },
+    include: {
+      user: { select: { id: true, email: true, name: true, avatarUrl: true } },
+    },
     orderBy: { joinedAt: 'asc' },
   });
 
-  return members.map((m) => ({
-    id: m.id,
-    roomId: m.roomId,
-    userId: m.userId,
-    role: m.role,
-    joinedAt: m.joinedAt,
-    user: m.user,
-  }));
+  // Lấy các phiên học đang ACTIVE của những thành viên này trong phòng.
+  // (Kể cả PAUSED cũng là phiên chưa kết thúc, nhưng UI chỉ hiển thị ACTIVE.)
+  const activeSessions = await prisma.studySession.findMany({
+    where: {
+      roomId,
+      status: 'ACTIVE',
+      userId: { in: members.map((m) => m.userId) },
+    },
+    orderBy: { startedAt: 'desc' },
+  });
+
+  const sessionByUser = new Map<string, (typeof activeSessions)[number]>();
+  for (const session of activeSessions) {
+    // Nếu có nhiều phiên ACTIVE bất thường, giữ phiên mới nhất.
+    if (!sessionByUser.has(session.userId)) {
+      sessionByUser.set(session.userId, session);
+    }
+  }
+
+  return members.map((m) => {
+    const session = sessionByUser.get(m.userId);
+    return {
+      // `id` ở đây là userId để frontend so khớp với currentUserId.
+      id: m.userId,
+      name: m.user.name,
+      avatarUrl: m.user.avatarUrl,
+      role: m.role,
+      activeSession: session
+        ? {
+            goal: session.goal,
+            duration: session.duration,
+            lastResumedAt: session.lastResumedAt,
+            startedAt: session.startedAt,
+          }
+        : null,
+    };
+  });
 };
 
 export const kickMember = async (
