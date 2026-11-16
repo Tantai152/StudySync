@@ -15,5 +15,14 @@ export const loginSchema = z.object({
   }),
 });
 
+// Payload của access token. `userId` bắt buộc; `email`/`role` optional vì
+// token cũ (trước khi có role) chỉ chứa userId.
+export const accessTokenPayloadSchema = z.object({
+  userId: z.string().min(1),
+  email: z.string().optional(),
+  role: z.string().optional(),
+});
+
 export type RegisterInput = z.infer<typeof registerSchema>['body'];
 export type LoginInput = z.infer<typeof loginSchema>['body'];
+export type AccessTokenPayload = z.infer<typeof accessTokenPayloadSchema>;

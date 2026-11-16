@@ -9,10 +9,15 @@ const hashToken = (token: string) => {
   return crypto.createHash('sha256').update(token).digest('hex');
 };
 
-export const generateTokens = async (userId: string, res: Response) => {
+export const generateTokens = async (
+  userId: string,
+  role: string,
+  res: Response
+) => {
   // 1. Tạo Access Token (ngắn hạn, dùng để gọi API)
-  const accessToken = jwt.sign({ userId }, env.JWT_ACCESS_SECRET, {
-  expiresIn: env.ACCESS_TOKEN_EXPIRES_IN as jwt.SignOptions['expiresIn'], 
+  // `role` được ký vào token để middleware authorize() kiểm tra mà không cần query DB.
+  const accessToken = jwt.sign({ userId, role }, env.JWT_ACCESS_SECRET, {
+    expiresIn: env.ACCESS_TOKEN_EXPIRES_IN as jwt.SignOptions['expiresIn'],
   });
 
   // 2. Tạo Refresh Token (dài hạn, dùng để lấy Access Token mới)
