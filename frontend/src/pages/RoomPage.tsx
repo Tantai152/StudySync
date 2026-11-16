@@ -10,7 +10,8 @@ import {
   deleteRoomApi,
 } from '../api/room.api';
 import api, { getAccessToken } from '../lib/axios';
-import { connectSocket, getSocket } from '../lib/socket';
+import { connectSocket } from '../lib/socket';
+import type { Socket } from 'socket.io-client';
 import { useToast } from '../components/ToastContext';
 import StudyTimer from '../components/StudyTimer';
 import VoicePanel from '../components/VoicePanel';
@@ -64,8 +65,8 @@ const RoomPage = () => {
     }
   };
 
-  // Lấy Socket Instance
-  const socket = getSocket() || connectSocket();
+  // Lấy Socket Instance (singleton, chỉ tạo một lần cho cả app)
+  const [socket] = useState<Socket>(() => connectSocket());
 
   // 1. "Mồi" Axios bằng API /friends để tự động Refresh Token
   const { data: friendsData, isLoading: isLoadingUser } = useQuery({
@@ -153,6 +154,9 @@ const RoomPage = () => {
     }
 
     return () => {
+      // Chỉ gỡ handler của component. KHÔNG disconnect singleton ở đây:
+      // StrictMode chạy effect 2 lần và socket dùng chung cho toàn app,
+      // disconnect tại đây sẽ giết kết nối vừa tạo ở lần mount thứ hai.
       socket.off('connect', handleConnect);
       socket.off('disconnect', handleDisconnect);
       socket.off('chat:new_message', handleNewMessage);

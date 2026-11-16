@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolverV4 } from '../lib/zodResolver';
@@ -10,8 +10,13 @@ import { useAuth } from '../hooks/useAuth';
 export const LoginForm: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { login } = useAuth();
-  const [apiError, setApiError] = useState<string | null>(null);
+  const [apiError, setApiError] = useState<string | null>(
+    searchParams.get('reason') === 'session_expired'
+      ? 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'
+      : null
+  );
 
   // URL cần quay về sau khi đăng nhập (VD: /join?token=xxx từ link mời)
   const returnUrl = (location.state as { returnUrl?: string } | null)?.returnUrl;

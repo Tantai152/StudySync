@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { io, type Socket } from 'socket.io-client';
 import api, { getAccessToken } from '../lib/axios';
+import { installAuthRecovery } from '../lib/socket';
 
 const ICE_SERVERS = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 
@@ -382,12 +383,32 @@ export function useVoiceRoom({ roomId }: { roomId: string }): UseVoiceRoomReturn
 
     const socketUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3000';
     socketRef.current = io(`${socketUrl}/voice`, {
-      auth: { token },
+      // Callback chạy lại mỗi lần thử kết nối => luôn gửi token mới nhất.
+      auth: (cb) => cb({ token: getAccessToken() ?? '' }),
       transports: ['websocket', 'polling'],
       withCredentials: true,
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      randomizationFactor: 0.5,
+      timeout: 20_000,
     });
 
     const socket = socketRef.current;
+
+    // Refresh token khi backend từ chối vì JWT hết hạn; nếu refresh token cũng
+    // chết thì dừng mic/peer trước khi bị đá về /login.
+    installAuthRecovery(socket, () => {
+      localStreamRef.current?.getTracks().forEach((track) => track.stop());
+      localStreamRef.current = null;
+      peerConnectionsRef.current.forEach((pc) => pc.close());
+      peerConnectionsRef.current.clear();
+      pendingIceRef.current.clear();
+      setPeers([]);
+      setError('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+      setState('error');
+    });
 
     socket.on('connect', () => {
       socket.emit('voice:join', { roomId });
@@ -562,7 +583,7 @@ export function useVoiceRoom({ roomId }: { roomId: string }): UseVoiceRoomReturn
       }
     );
 
-    socket.on('disconnect', () => {
+    socket.on('disconnect', (reason: string) => {
       if (isUserInitiatedLeave.current) {
         // User intentionally left — clean up silently
         isUserInitiatedLeave.current = false;
@@ -578,18 +599,20 @@ export function useVoiceRoom({ roomId }: { roomId: string }): UseVoiceRoomReturn
         return;
       }
 
-      if (stateRef.current === 'connected' || stateRef.current === 'connecting') {
-        // Unexpected disconnect (mất mạng, server sập)
-        localStreamRef.current?.getTracks().forEach((track) => track.stop());
-        localStreamRef.current = null;
-        peerConnectionsRef.current.forEach((pc) => pc.close());
-        peerConnectionsRef.current.clear();
-        setPeers([]);
-        setError('Mất kết nối tới server. Vui lòng tham gia lại.');
-        setState('error');
-        setIsMuted(false);
-        socketRef.current = null;
+      if (reason === 'io server disconnect') {
+        // Server chủ động ngắt (restart/redeploy): client không tự reconnect.
+        socket.connect();
       }
+
+      // Mất mạng / server cold start: Socket.IO sẽ tự kết nối lại. Dọn peer cũ
+      // nhưng GIỮ socket + mic để 'connect' join lại phòng, tránh rò rỉ và
+      // tránh nhầm thành lỗi "mất kết nối" vĩnh viễn.
+      peerConnectionsRef.current.forEach((pc) => pc.close());
+      peerConnectionsRef.current.clear();
+      pendingIceRef.current.clear();
+      setPeers([]);
+      setIsMuted(false);
+      setState('connecting');
     });
   }, [
     roomId,
@@ -625,6 +648,7 @@ export function useVoiceRoom({ roomId }: { roomId: string }): UseVoiceRoomReturn
     // Disconnect socket
     if (socketRef.current) {
       socketRef.current.emit('voice:leave', { roomId });
+      socketRef.current.removeAllListeners();
       socketRef.current.disconnect();
       socketRef.current = null;
     }
@@ -645,6 +669,7 @@ export function useVoiceRoom({ roomId }: { roomId: string }): UseVoiceRoomReturn
       peerConnectionsRef.current.forEach((pc) => pc.close());
       peerConnectionsRef.current.clear();
       if (socketRef.current) {
+        socketRef.current.removeAllListeners();
         socketRef.current.disconnect();
         socketRef.current = null;
       }
@@ -660,22 +685,24 @@ export function useVoiceRoom({ roomId }: { roomId: string }): UseVoiceRoomReturn
 
   // Cleanup on component unmount
   useEffect(() => {
+    // Hai Map dưới đây chỉ bị mutate, không bao giờ gán lại => giữ nguyên instance.
     const peerConnections = peerConnectionsRef.current;
-    const socket = socketRef.current;
-    const localStream = localStreamRef.current;
+    const pendingIce = pendingIceRef.current;
 
     return () => {
       stopRecording();
-      if (stateRef.current === 'connected' || stateRef.current === 'connecting') {
-        localStream?.getTracks()?.forEach((track) => track.stop());
-        peerConnections.forEach((pc) => pc.close());
-        if (socket) {
-          socket.disconnect();
-        }
-        setPeers([]);
-        setError(null);
-        setState('idle');
-        setIsMuted(false);
+      // Đọc ref tại thời điểm unmount (không capture lúc mount): socket/stream
+      // được tạo sau đó trong join(), capture sớm sẽ bỏ sót và gây rò rỉ.
+      localStreamRef.current?.getTracks().forEach((track) => track.stop());
+      localStreamRef.current = null;
+      peerConnections.forEach((pc) => pc.close());
+      peerConnections.clear();
+      pendingIce.clear();
+      const socket = socketRef.current;
+      if (socket) {
+        socket.removeAllListeners();
+        socket.disconnect();
+        socketRef.current = null;
       }
     };
   }, [stopRecording]);

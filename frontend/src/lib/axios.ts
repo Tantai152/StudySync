@@ -18,11 +18,39 @@ let accessToken: string | null = (() => {
   }
 })();
 export const getAccessToken = () => accessToken;
+
+// Dùng chung cho Axios và Socket.IO: giữ đúng 1 chỗ quyết định đá người dùng
+// về /login, kèm lý do để LoginForm hiển thị thông báo.
+export const redirectToLogin = (reason?: 'session_expired') => {
+  if (window.location.pathname === '/login') return;
+  window.location.href = reason ? `/login?reason=${reason}` : '/login';
+};
+
 let isRefreshing = false;
 let failedQueue: Array<{ resolve: (value: unknown) => void; reject: (reason?: unknown) => void }> = [];
 
 export const setAccessToken = (token: string | null) => {
   accessToken = token;
+};
+
+// Dùng chung cho Axios interceptor và Socket.IO: nhiều nơi cùng gọi thì chỉ có
+// một request /auth/refresh đang chạy, tránh rotate refresh token song song.
+let refreshPromise: Promise<string> | null = null;
+
+export const refreshAccessToken = (): Promise<string> => {
+  if (!refreshPromise) {
+    refreshPromise = refreshClient
+      .post('/auth/refresh')
+      .then((response) => {
+        const token = response.data.data.accessToken as string;
+        setAccessToken(token);
+        return token;
+      })
+      .finally(() => {
+        refreshPromise = null;
+      });
+  }
+  return refreshPromise;
 };
 
 // Hàm xử lý hàng đợi
@@ -81,10 +109,8 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        const response = await refreshClient.post('/auth/refresh');
-        const newAccessToken = response.data.data.accessToken;
+        const newAccessToken = await refreshAccessToken();
 
-        setAccessToken(newAccessToken);
         processQueue(null, newAccessToken);
 
         originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
@@ -93,7 +119,7 @@ api.interceptors.response.use(
       } catch (refreshError) {
         processQueue(refreshError, null);
         setAccessToken(null);
-        window.location.href = '/login';
+        redirectToLogin('session_expired');
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;
