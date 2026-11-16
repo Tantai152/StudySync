@@ -37,6 +37,7 @@ const RoomPage = () => {
   const [currentUserId, setCurrentUserId] = useState('');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+  const [isFocusMode, setIsFocusMode] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
   const { show: showToast } = useToast();
@@ -216,6 +217,38 @@ const RoomPage = () => {
     return <div className="p-6 text-center text-gray-500">Đang tải dữ liệu phòng chat...</div>;
   }
 
+  // Focus Mode: ẩn Chat + Sidebar, chỉ còn đồng hồ trên nền tối.
+  if (isFocusMode) {
+    return (
+      <div className="fixed inset-0 z-40 flex flex-col bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-white">
+        <div className="flex items-center justify-between px-4 py-3 sm:px-6">
+          <span className="truncate text-xs font-medium uppercase tracking-widest text-indigo-300/80">
+            {roomName}
+          </span>
+          <button
+            onClick={() => setIsFocusMode(false)}
+            className="rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-medium text-slate-200 transition-colors hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+          >
+            Thoát chế độ tập trung
+          </button>
+        </div>
+
+        <div className="flex flex-1 flex-col items-center justify-center gap-8 px-6 pb-16">
+          <p className="text-xs font-semibold uppercase tracking-[0.5em] text-indigo-300 sm:text-sm">
+            Đang tập trung...
+          </p>
+          {roomId && (
+            <StudyTimer
+              roomId={roomId}
+              variant="focus"
+              onFocusModeChange={setIsFocusMode}
+            />
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <React.Fragment>
       <div className="flex flex-col h-[85vh] max-w-6xl mx-auto my-6 bg-white border rounded-xl shadow-lg overflow-hidden">
@@ -315,7 +348,7 @@ const RoomPage = () => {
         {roomId && (
           <div className="w-72 border-l bg-gray-50 flex flex-col overflow-y-auto">
             {/* Timer cá nhân; trạng thái realtime do server emit 'study:user_status' */}
-            <StudyTimer roomId={roomId} />
+            <StudyTimer roomId={roomId} onFocusModeChange={setIsFocusMode} />
             <VoicePanel roomId={roomId} />
 
             {/* Danh sách toàn bộ thành viên + phiên học đang ACTIVE */}
