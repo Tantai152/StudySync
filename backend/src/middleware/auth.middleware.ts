@@ -2,6 +2,7 @@ import type { Secret } from 'jsonwebtoken';
 import { createRequire } from 'module';
 import { Request, Response, NextFunction } from 'express';
 import { env } from '../config/env.js';
+import { accessTokenPayloadSchema } from '../validation/auth.schema.js';
 
 const require = createRequire(import.meta.url);
 const { verify } = require('jsonwebtoken');
@@ -33,13 +34,20 @@ export function authenticate(
 
   try {
     const secret: Secret = env.JWT_ACCESS_SECRET;
-    const payload = verify(token, secret) as {
-      userId: string;
-      email: string;
-      role: string;
-    };
+    const decoded = verify(token, secret);
+    // jwt.verify trả `any`; validate để không gán payload thiếu userId vào req.user.
+    const parsed = accessTokenPayloadSchema.safeParse(decoded);
 
-    req.user = payload;
+    if (!parsed.success) {
+      res.status(401).json({
+        success: false,
+        message: 'Vui lòng đăng nhập để tiếp tục',
+        errorCode: 'UNAUTHORIZED',
+      });
+      return;
+    }
+
+    req.user = parsed.data;
     next();
   } catch {
     res.status(401).json({
@@ -58,7 +66,8 @@ export function authenticate(
  */
 export function authorize(...roles: string[]) {
   return (req: Request, res: Response, next: NextFunction): void => {
-    if (!req.user || !roles.includes(req.user.role)) {
+    const role = req.user?.role;
+    if (!role || !roles.includes(role)) {
       res.status(403).json({
         success: false,
         message: 'Bạn không có quyền thực hiện thao tác này',

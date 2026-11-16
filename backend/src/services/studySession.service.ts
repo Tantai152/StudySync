@@ -1,4 +1,5 @@
 import { prisma } from '../config/prisma.js';
+import { emitToRoom } from '../socket/io.js';
 
 export class StudySessionError extends Error {
   constructor(
@@ -128,7 +129,10 @@ export const start = async (
     },
   });
 
-  return toDto(session);
+  const dto = toDto(session);
+  // Báo cho các thành viên khác trong phòng cập nhật trạng thái timer.
+  emitToRoom(roomId, 'study:user_status', { userId, session: dto });
+  return dto;
 };
 
 export const pause = async (
@@ -161,7 +165,9 @@ export const pause = async (
     },
   });
 
-  return toDto(updated);
+  const dto = toDto(updated);
+  emitToRoom(roomId, 'study:user_status', { userId, session: dto });
+  return dto;
 };
 
 export const resume = async (
@@ -190,7 +196,9 @@ export const resume = async (
     },
   });
 
-  return toDto(updated);
+  const dto = toDto(updated);
+  emitToRoom(roomId, 'study:user_status', { userId, session: dto });
+  return dto;
 };
 
 export const finish = async (
@@ -230,7 +238,9 @@ export const finish = async (
     },
   });
 
-  return toDto(updated);
+  const dto = toDto(updated);
+  emitToRoom(roomId, 'study:user_status', { userId, session: dto });
+  return dto;
 };
 
 export const current = async (userId: string, roomId: string) => {

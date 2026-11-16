@@ -314,8 +314,8 @@ const RoomPage = () => {
         {/* SIDEBAR */}
         {roomId && (
           <div className="w-72 border-l bg-gray-50 flex flex-col overflow-y-auto">
-            {/* ĐÃ THÊM prop socket={socket} VÀO DƯỚI ĐÂY */}
-            <StudyTimer roomId={roomId} socket={socket} />
+            {/* Timer cá nhân; trạng thái realtime do server emit 'study:user_status' */}
+            <StudyTimer roomId={roomId} />
             <VoicePanel roomId={roomId} />
 
             {/* Danh sách toàn bộ thành viên + phiên học đang ACTIVE */}

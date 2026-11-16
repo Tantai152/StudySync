@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Socket } from 'socket.io-client';
 import {
   getCurrentSessionApi,
   startSessionApi,
@@ -12,7 +11,6 @@ import {
 
 interface StudyTimerProps {
   roomId: string;
-  socket: Socket | null;
 }
 
 const computeElapsed = (session: StudySessionDTO | null): number => {
@@ -39,7 +37,7 @@ const formatTime = (totalSeconds: number): string => {
 
 // --- COMPONENT: đếm giây hiển thị tiến trình phiên học ---
 
-const StudyTimer = ({ roomId, socket }: StudyTimerProps) => {
+const StudyTimer = ({ roomId }: StudyTimerProps) => {
   const queryClient = useQueryClient();
   const [goalInput, setGoalInput] = useState('');
 
@@ -78,12 +76,11 @@ const StudyTimer = ({ roomId, socket }: StudyTimerProps) => {
 
   const startMutation = useMutation({
     mutationFn: () => startSessionApi(roomId, goalInput.trim() || undefined),
-    onSuccess: (data) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ['study-session', 'current', roomId],
       });
       setGoalInput('');
-      socket?.emit('study:status_update', { roomId, session: data });
     },
   });
 
@@ -95,11 +92,10 @@ const StudyTimer = ({ roomId, socket }: StudyTimerProps) => {
         case 'finish': return finishSessionApi(roomId, sessionId);
       }
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ['study-session', 'current', roomId],
       });
-      socket?.emit('study:status_update', { roomId, session: data });
     },
   });
 

@@ -10,7 +10,11 @@ export const useSendMessage = (roomId: string) => {
   return useMutation<MessageItem, Error, { content: string; clientId?: string }>({
     mutationFn: ({ content, clientId }) => sendMessageApi(roomId, { content, clientId }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['messages', roomId] });
+      // exact: false để prefix-match mọi cache ['messages', roomId, cursor]
+      queryClient.invalidateQueries({
+        queryKey: ['messages', roomId],
+        exact: false,
+      });
     },
   });
 };

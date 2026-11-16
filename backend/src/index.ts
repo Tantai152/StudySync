@@ -5,6 +5,7 @@ import { env } from './config/env.js';
 import { corsOptions } from './config/cors.js';
 import { setupSocket } from './sockets/socket.js';
 import { registerVoiceNamespace } from './socket/voice.socket.js';
+import { setSocketServer } from './socket/io.js';
 
 const app = createApp();
 
@@ -17,6 +18,9 @@ const io = new Server(server, {
   pingTimeout: 60000,
   pingInterval: 25000,
 });
+
+// Inject io vào registry để service layer emit được realtime event
+setSocketServer(io);
 
 // Kích hoạt Socket logic
 setupSocket(io);

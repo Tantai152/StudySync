@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { env } from '../config/env.js';
 import { prisma } from '../config/prisma.js';
 import { markVoiceOffline, markVoiceOnline } from './roomPresence.js';
+import { accessTokenPayloadSchema } from '../validation/auth.schema.js';
 
 const MAX_PER_ROOM = 4;
 
@@ -64,10 +65,12 @@ export function registerVoiceNamespace(io: Server) {
       return next(new Error('UNAUTHORIZED'));
     }
     try {
-      const decoded = jwt.verify(token, env.JWT_ACCESS_SECRET) as {
-        userId: string;
-      };
-      socket.data.userId = decoded.userId;
+      const decoded = jwt.verify(token, env.JWT_ACCESS_SECRET);
+      const parsed = accessTokenPayloadSchema.safeParse(decoded);
+      if (!parsed.success) {
+        return next(new Error('UNAUTHORIZED'));
+      }
+      socket.data.userId = parsed.data.userId;
       next();
     } catch {
       return next(new Error('UNAUTHORIZED'));
