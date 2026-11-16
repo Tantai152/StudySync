@@ -15,6 +15,7 @@ export interface UserResponse {
   email: string;
   name: string;
   avatarUrl: string | null;
+  role: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -67,6 +68,7 @@ export async function registerUser(input: CreateUserInput): Promise<UserResponse
     email: user.email,
     name: user.name,
     avatarUrl: user.avatarUrl,
+    role: user.role,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
   };
@@ -93,7 +95,7 @@ export async function loginUser(input: LoginInput): Promise<LoginResponse> {
   const payload: JWTPayload = {
     userId: user.id,
     email: user.email,
-    role: 'USER', // Hardcoded until DB has role field
+    role: user.role,
   };
 
   const accessToken = generateToken(payload);
@@ -104,6 +106,7 @@ export async function loginUser(input: LoginInput): Promise<LoginResponse> {
       email: user.email,
       name: user.name,
       avatarUrl: user.avatarUrl,
+      role: user.role,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     },
