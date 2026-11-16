@@ -4,6 +4,7 @@ import { env } from '../config/env.js';
 import { prisma } from '../config/prisma.js';
 import * as messageService from '../services/message.service.js';
 import { markChatOffline, markChatOnline } from '../socket/roomPresence.js';
+import { accessTokenPayloadSchema } from '../validation/auth.schema.js';
 
 // Mở rộng kiểu dữ liệu của Socket để lưu userId
 interface AuthSocket extends Socket {
@@ -20,8 +21,12 @@ export const setupSocket = (io: Server) => {
     }
 
     try {
-      const decoded = jwt.verify(token, env.JWT_ACCESS_SECRET) as { userId: string };
-      socket.userId = decoded.userId;
+      const decoded = jwt.verify(token, env.JWT_ACCESS_SECRET);
+      const parsed = accessTokenPayloadSchema.safeParse(decoded);
+      if (!parsed.success) {
+        return next(new Error('Unauthorized: Invalid token'));
+      }
+      socket.userId = parsed.data.userId;
       next();
     } catch {
       next(new Error('Unauthorized: Invalid token'));
@@ -101,14 +106,6 @@ export const setupSocket = (io: Server) => {
     socket.on('voice:leave', (roomId: string) => {
       socket.to(roomId).emit('voice:user_left', socket.id);
       console.log(`User ${socket.userId} left voice in room: ${roomId}`);
-    });
-
-    // ==========================================
-    // STUDY SESSION REALTIME (Đã được đưa vào đúng chỗ)
-    // ==========================================
-    socket.on('study:status_update', (data: { roomId: string; session: unknown }) => {
-      // Phát cho những người khác trong phòng biết (trừ mình)
-      socket.to(data.roomId).emit('study:user_status', data.session);
     });
 
     // Xử lý ngắt kết nối (Tắt tab, mất mạng)

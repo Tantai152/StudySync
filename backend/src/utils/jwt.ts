@@ -7,8 +7,9 @@ const { sign } = require('jsonwebtoken');
 
 export interface JWTPayload {
   userId: string;
-  email: string;
-  role: string;
+  // Access token hiện chỉ ký userId; email/role optional để không vỡ token cũ.
+  email?: string;
+  role?: string;
 }
 
 /**
