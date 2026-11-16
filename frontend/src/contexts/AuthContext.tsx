@@ -2,6 +2,7 @@
 import React, { createContext, useState, useEffect, useMemo, useCallback, type ReactNode } from 'react';
 import type { User, AuthContextType, UpdateProfileInput } from '../types/auth.types';
 import { setAccessToken } from '../lib/axios';
+import { disconnectSocket } from '../lib/socket';
 import { updateProfileApi } from '../api/user.api';
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -65,6 +66,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const logout = () => {
     setAccessToken(null); // Xóa token khỏi RAM
+    disconnectSocket(); // Đóng socket để không giữ kết nối bằng token cũ
     setAccessTokenState(null); // Xóa token khỏi React state
     setUser(null);
     localStorage.removeItem(USER_STORAGE_KEY);
