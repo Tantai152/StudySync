@@ -54,6 +54,11 @@ export const transcribeAudio = async (
       file,
       model: TRANSCRIPTION_MODEL,
       language,
+      // Ghim decode để kết quả ổn định; lưu ý đây KHÔNG chặn được ảo giác —
+      // lớp chặn thật nằm ở transcription-guard.ts.
+      temperature: 0,
+      prompt:
+        'Đây là âm thanh thu âm từ một buổi học nhóm trực tuyến bằng tiếng Việt.',
     });
 
     return (result.text ?? '').trim();

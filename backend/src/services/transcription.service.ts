@@ -1,5 +1,6 @@
 import { prisma } from '../config/prisma.js';
 import { transcribeAudio } from './groq.service.js';
+import { isWhisperHallucination } from './transcription-guard.js';
 
 export class TranscriptionError extends Error {
   constructor(
@@ -45,8 +46,9 @@ export const transcribeAndSave = async ({
 
   const text = await transcribeAudio(fileBuffer, fileName, language);
 
-  // Đoạn im lặng/không có giọng nói trả về text rỗng -> không lưu rác vào DB.
-  if (!text) {
+  // Đoạn im lặng có thể trả về rỗng, hoặc bị Whisper "ảo giác" thành câu
+  // YouTube cố định -> coi như rỗng, không lưu rác vào DB.
+  if (!text || isWhisperHallucination(text)) {
     return { id: null, roomId, userId, text: '', createdAt: null };
   }
 

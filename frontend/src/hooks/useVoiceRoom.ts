@@ -10,6 +10,68 @@ const RECORDING_SEGMENT_MS = 15_000;
 // Bỏ qua blob quá nhỏ (im lặng/nhiễu) để tránh gọi Groq vô ích.
 const MIN_AUDIO_BLOB_BYTES = 1_500;
 
+// Whisper "ảo giác" ra câu YouTube tiếng Việt khi đoạn audio gần như im lặng.
+// Ngưỡng byte không bắt được im lặng (15s opus im lặng vẫn ~10-20KB) nên phải
+// đo năng lượng tín hiệu thật từ micro.
+const SPEECH_RMS_THRESHOLD = 0.01;
+const SPEECH_SAMPLE_MS = 100;
+const MIN_SPEECH_MS_PER_SEGMENT = 300;
+
+interface SpeechMeter {
+  /** True khi đo được tín hiệu thật; false khi AudioContext bị chặn => bỏ lọc. */
+  available: () => boolean;
+  stop: () => void;
+}
+
+const startSpeechMeter = (
+  stream: MediaStream,
+  onSpeechMs: (deltaMs: number) => void
+): SpeechMeter => {
+  if (typeof AudioContext === 'undefined') {
+    return { available: () => false, stop: () => {} };
+  }
+
+  try {
+    const context = new AudioContext();
+    const source = context.createMediaStreamSource(stream);
+    const analyser = context.createAnalyser();
+    analyser.fftSize = 1024;
+    source.connect(analyser);
+    const samples = new Float32Array(analyser.fftSize);
+    let blocked = false;
+
+    void context.resume();
+
+    const timer = window.setInterval(() => {
+      // Autoplay policy có thể giữ context ở 'suspended' => mọi sample bằng 0.
+      // Khi đó không được coi là "im lặng", nếu không sẽ chặn sạch audio.
+      if (context.state !== 'running') {
+        blocked = true;
+        return;
+      }
+      analyser.getFloatTimeDomainData(samples);
+      let sumSquares = 0;
+      for (let i = 0; i < samples.length; i += 1) {
+        sumSquares += samples[i] * samples[i];
+      }
+      if (Math.sqrt(sumSquares / samples.length) >= SPEECH_RMS_THRESHOLD) {
+        onSpeechMs(SPEECH_SAMPLE_MS);
+      }
+    }, SPEECH_SAMPLE_MS);
+
+    return {
+      available: () => !blocked,
+      stop: () => {
+        window.clearInterval(timer);
+        source.disconnect();
+        void context.close();
+      },
+    };
+  } catch {
+    return { available: () => false, stop: () => {} };
+  }
+};
+
 const RECORDING_MIME_TYPES = [
   'audio/webm;codecs=opus',
   'audio/webm',
@@ -236,6 +298,10 @@ export function useVoiceRoom({ roomId }: { roomId: string }): UseVoiceRoomReturn
     }
 
     const chunks: BlobPart[] = [];
+    let speechMs = 0;
+    const meter = startSpeechMeter(stream, (deltaMs) => {
+      speechMs += deltaMs;
+    });
     isRecordingRef.current = true;
     mediaRecorderRef.current = recorder;
 
@@ -245,21 +311,29 @@ export function useVoiceRoom({ roomId }: { roomId: string }): UseVoiceRoomReturn
 
     recorder.onstop = () => {
       mediaRecorderRef.current = null;
+      meter.stop();
       if (segmentTimerRef.current) {
         clearTimeout(segmentTimerRef.current);
         segmentTimerRef.current = null;
       }
 
+      const blob =
+        chunks.length > 0
+          ? new Blob(chunks, { type: recorder.mimeType || 'audio/webm' })
+          : null;
+      // Blob đã copy dữ liệu; xoá mảng ngay để không giữ audio đoạn này.
+      chunks.length = 0;
+
       // Gửi đoạn audio vừa thu (kể cả đoạn cuối khi rời phòng).
-      // Chỉ bỏ khi bị đánh dấu discard rõ ràng.
-      const shouldSend = !discardCurrentSegmentRef.current && chunks.length > 0;
+      // Bỏ khi bị đánh dấu discard, hoặc khi đoạn đó không có tiếng nói.
+      const hasSpeech =
+        !meter.available() || speechMs >= MIN_SPEECH_MS_PER_SEGMENT;
+      const shouldSend =
+        !discardCurrentSegmentRef.current && blob !== null && hasSpeech;
       discardCurrentSegmentRef.current = false;
 
       let uploadPromise: Promise<void> = Promise.resolve();
-      if (shouldSend) {
-        const blob = new Blob(chunks, {
-          type: recorder.mimeType || 'audio/webm',
-        });
+      if (shouldSend && blob) {
         uploadPromise = sendAudioChunk(blob);
         lastUploadPromiseRef.current = uploadPromise;
       }
@@ -277,7 +351,15 @@ export function useVoiceRoom({ roomId }: { roomId: string }): UseVoiceRoomReturn
       }
     };
 
-    recorder.start();
+    try {
+      recorder.start();
+    } catch (err) {
+      meter.stop();
+      isRecordingRef.current = false;
+      mediaRecorderRef.current = null;
+      console.warn('[voice] Không thể bắt đầu MediaRecorder', err);
+      return;
+    }
 
     segmentTimerRef.current = setTimeout(() => {
       if (recorder.state !== 'inactive') {
