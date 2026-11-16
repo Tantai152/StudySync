@@ -44,7 +44,7 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
       return res.status(401).json({ success: false, message: 'Invalid email or password', errorCode: 'INVALID_CREDENTIALS' });
     }
 
-    const { accessToken } = await generateTokens(user.id, res);
+    const { accessToken } = await generateTokens(user.id, user.role, res);
 
     res.status(200).json({
       success: true,
@@ -54,6 +54,7 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
           email: user.email,
           name: user.name,
           avatarUrl: user.avatarUrl,
+          role: user.role,
         },
         accessToken,
       },
@@ -92,6 +93,7 @@ export async function meController(
         email: true,
         name: true,
         avatarUrl: true,
+        role: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -191,8 +193,18 @@ export const refresh = async (req: Request, res: Response, next: NextFunction) =
     // 2. Thu hồi token cũ (Rotating Refresh Token - chống bị đánh cắp)
     await revokeRefreshToken(refreshToken);
 
-    // 3. Cấp lại cặp token mới
-    const { accessToken } = await generateTokens(validToken.userId, res);
+    // 3. Lấy role hiện tại để cấp access token mới đúng quyền
+    const user = await prisma.user.findUnique({
+      where: { id: validToken.userId },
+      select: { role: true },
+    });
+
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'User not found', errorCode: 'USER_NOT_FOUND' });
+    }
+
+    // 4. Cấp lại cặp token mới
+    const { accessToken } = await generateTokens(validToken.userId, user.role, res);
 
     res.status(200).json({
       success: true,
